@@ -9,7 +9,7 @@ Browser UI → lightweight Python .venv → Linux worker
 ## Separate the responsibilities
 
 The **NVIDIA driver** connects the OS to the GPU. Install it through NVIDIA or
-the laptop vendor. The app does not replace it. The **PyTorch wheel** supplies
+the system manufacturer. The app does not replace it. The **PyTorch wheel** supplies
 libraries for its CUDA build; a CPU wheel cannot train on your NVIDIA device.
 The **development toolkit** supplies nvcc and headers for compiling gsplat.
 The **host C++ compiler** builds bindings and must be compatible with nvcc.
@@ -25,7 +25,7 @@ The first sync can download a compatible Python without replacing another projec
 
 Install WSL2 Ubuntu 24.04 or newer through Microsoft's instructions if missing.
 The managed native profile requires x86_64 Linux with glibc 2.39 or newer;
-the complete laptop check used Ubuntu 26.04 under WSL2.
+the complete system check used Ubuntu 26.04 under WSL2.
 `wsl --list --verbose` should show the intended distribution at version 2.
 `wsl -d Ubuntu -- nvidia-smi` should show the device. Select a different installed
 distribution name in Computer & setup when appropriate.

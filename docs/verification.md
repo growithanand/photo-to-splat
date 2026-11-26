@@ -4,7 +4,7 @@ This distinguishes software tests from actual reconstruction evidence. GitHub CI
 runs the backend checks on Windows and Linux, plus frontend tests and the build.
 The [initial public CI run](https://github.com/growithanand/photo-to-splat/actions/runs/45876808337)
 passed all three jobs on 26 November 2026. GPU execution evidence below comes
-from the tested laptop, independently of those CPU-only CI jobs.
+from the tested system, independently of those CPU-only CI jobs.
 
 ## Automated checks
 
@@ -76,7 +76,7 @@ These tests do not claim CUDA support on CPU-only CI runners.
 
 ## Limits
 
-One tested laptop does not establish minimum VRAM, support for every distro, or
+One tested system does not establish minimum VRAM, support for every distro, or
 unlimited collection size. Updating native tools/torch/gsplat requires retesting
 camera conversion, rendering, checkpoint loading, and viewer defaults.
 Follow-up use on 26 November exposed a CUDA launch error in a viewer render thread.

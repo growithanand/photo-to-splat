@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="486" viewBox="0 0 360 486" role="img" aria-labelledby="title description">
+  <title id="title">From photographs to a saved 3D scene</title>
+  <desc id="description">Check the system, import overlapping photos, estimate cameras with COLMAP, train Gaussians with Splatfacto, compare held-out views, then explore and export.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <path d="M0 0L6 3.5L0 7" fill="none" stroke="#527562" stroke-width="1.4"/>
+    </marker>
+  </defs>
+  <rect x="0.5" y="0.5" width="359" height="485" rx="18" fill="#f3f7f3" stroke="#d4dfd5"/>
+  <g fill="none" stroke="#527562" stroke-width="1.5" marker-end="url(#arrow)">
+    <path d="M180 75V87"/><path d="M180 155V167"/>
+    <path d="M180 235V247"/><path d="M180 315V327"/>
+    <path d="M180 395V407"/>
+  </g>
+  <g fill="#fff" stroke="#d4dfd5">
+    <rect x="12" y="12" width="336" height="62" rx="10"/>
+    <rect x="12" y="92" width="336" height="62" rx="10"/>
+    <rect x="12" y="172" width="336" height="62" rx="10"/>
+    <rect x="12" y="252" width="336" height="62" rx="10"/>
+    <rect x="12" y="332" width="336" height="62" rx="10"/>
+    <rect x="12" y="412" width="336" height="62" rx="10"/>
+  </g>
+  <g fill="#dceab7">
+    <circle cx="39" cy="43" r="14"/><circle cx="39" cy="123" r="14"/>
+    <circle cx="39" cy="203" r="14"/><circle cx="39" cy="283" r="14"/>
+    <circle cx="39" cy="363" r="14"/><circle cx="39" cy="443" r="14"/>
+  </g>
+  <g font-family="Arial, Helvetica, sans-serif" text-anchor="middle" font-size="14" font-weight="700" fill="#234f3c">
+    <text x="39" y="48">1</text><text x="39" y="128">2</text>
+    <text x="39" y="208">3</text><text x="39" y="288">4</text>
+    <text x="39" y="368">5</text><text x="39" y="448">6</text>
+  </g>
+  <g font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="600" fill="#203b30">
+    <text x="65" y="37">Check this system</text>
+    <text x="65" y="117">Import overlapping photos</text>
+    <text x="65" y="197">Estimate cameras</text>
+    <text x="65" y="277">Train Gaussians</text>
+    <text x="65" y="357">Compare held-out views</text>
+    <text x="65" y="437">Explore and export</text>
+  </g>
+  <g font-family="Arial, Helvetica, sans-serif" font-size="12.5" fill="#526b5b">
+    <text x="65" y="56">NVIDIA, tools, storage and GPU test</text>
+    <text x="65" y="136">Keep each capture in its own scene</text>
+    <text x="65" y="216">COLMAP finds camera poses and points</text>
+    <text x="65" y="296">Splatfacto learns the scene's appearance</text>
+    <text x="65" y="376">Review reference and rendered images</text>
+    <text x="65" y="456">Open the viewer and save a Gaussian PLY</text>
+  </g>
+</svg>

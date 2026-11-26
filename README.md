@@ -7,14 +7,7 @@ Watch an [example reconstruction](frontend/public/demo.mp4), check your computer
 import a capture, and let the application connect the reconstruction tools. Keep
 separate scenes and repeat experiments without replacing earlier runs.
 
-```mermaid
-flowchart LR
-  A[Check this computer] --> B[Import overlapping photos]
-  B --> C[Estimate cameras with COLMAP]
-  C --> D[Train Gaussians with Splatfacto]
-  D --> E[Compare held-out views]
-  E --> F[Explore and export]
-```
+![Workflow: check the system, import photos, estimate cameras, train Gaussians, compare views, then explore and export.](docs/assets/workflow.svg)
 
 ## What this project creates
 
@@ -32,19 +25,24 @@ or reliable geometry for surfaces never photographed.
 - Independent scenes and run snapshots, one active reconstruction, stage logs,
   checkpoint recovery, integrity checks, comparisons, and Gaussian PLY export.
 
-## Can my laptop run it?
+## Can my system run it?
 
-The dashboard starts without the GPU stack, so it can explain missing tools.
+The studio supports compatible desktop and portable systems. Its dashboard starts
+without the GPU stack and explains missing requirements. Reconstruction needs:
 
-| Requirement | Application / photo review | Reconstruction training |
-|---|---|---|
-| OS | Windows or Linux | Linux x86_64; Windows through WSL2 Ubuntu 24.04+ |
-| GPU | None for the welcome page | NVIDIA with a compatible CUDA driver |
-| Python | uv selects compatible Python 3.11–3.13 | Separate pinned Python 3.11 |
-| GPU memory | Not relevant | Scene-dependent; 24 GB RTX 5090 Laptop is the verified baseline |
-| Host memory | Enough for app and image decoding | Plan for 16–32 GB; larger captures may need more |
-| Storage | Stable imported copies | Working images, database, checkpoints, renders, and export |
-| Internet | Initial installation | Tool downloads and first-use metric weights; photos stay local |
+| Requirement | Supported configuration |
+|---|---|
+| Operating system | Windows x86_64 with WSL2 Ubuntu 24.04+, or compatible Linux x86_64 with glibc 2.39+ |
+| Graphics | NVIDIA CUDA GPU with a driver compatible with the pinned runtimes |
+| Python | uv selects Python 3.11–3.13 for the app; training uses a separate pinned Python 3.11 environment |
+| GPU memory | Depends on the scene; no minimum VRAM cutoff has been established |
+| System memory | Plan for 16–32 GB RAM; larger captures may need more |
+| Storage | Allow roughly 15–30 GB for tools/caches, plus imported photos and per-run working data/results |
+| Internet | Required for initial tools and first-use metric downloads; photos stay local |
+
+The tested system has **24 GB of GPU memory**. See the
+[verification record](docs/verification.md) for its exact GPU model, checks,
+and known limitations.
 
 RAM figures are planning targets, not tested minimum guarantees. We have not
 established a minimum-VRAM cutoff. Resolution, photo count, Gaussian growth, and
