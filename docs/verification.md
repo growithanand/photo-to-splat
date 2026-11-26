@@ -1,7 +1,10 @@
 # Verification record
 
-This distinguishes software tests from actual reconstruction evidence. CI has
-not run on GitHub until the repository is reviewed and published.
+This distinguishes software tests from actual reconstruction evidence. GitHub CI
+runs the backend checks on Windows and Linux, plus frontend tests and the build.
+The [initial public CI run](https://github.com/growithanand/photo-to-splat/actions/runs/45876808337)
+passed all three jobs on 26 November 2026. GPU execution evidence below comes
+from the tested laptop, independently of those CPU-only CI jobs.
 
 ## Automated checks
 
