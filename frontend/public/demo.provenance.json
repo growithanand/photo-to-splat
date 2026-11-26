@@ -1,0 +1,16 @@
+{
+  "kind": "actual Gaussian splatting output",
+  "subject": "procedural synthetic golden owl; no personal photographs",
+  "dataset": "owl-alpha",
+  "method": "Nerfstudio Splatfacto",
+  "training_iterations": 7000,
+  "frames": 72,
+  "fps": 12,
+  "resolution": [
+    480,
+    480
+  ],
+  "camera_path": "full 360 degree orbit at 23 degree elevation",
+  "generation_script": "scripts/render_demo.py",
+  "note": "The clip is a prerecorded example, not a reconstruction of the visitor\u2019s photos."
+}

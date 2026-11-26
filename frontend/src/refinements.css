@@ -1,0 +1,114 @@
+/* Keep task-critical labels readable at laptop and narrow viewports. */
+.check-row strong,
+.field-label,
+.journey-step strong,
+.preset strong {
+  font-size: 0.875rem;
+}
+.check-row small,
+.journey-step p,
+.preset small,
+.privacy-note {
+  font-size: 0.75rem;
+}
+.hero-pill {
+  font-size: 0.625rem;
+}
+.hero-footnote {
+  font-size: 0.75rem;
+  white-space: normal;
+  max-width: 270px;
+}
+.readiness > p,
+.readiness > .button,
+.section-heading p {
+  font-size: 0.8125rem;
+}
+.muted {
+  color: #657468;
+}
+.scene-status,
+.run-config > small,
+.config-note {
+  color: #667854;
+}
+.folder-current {
+  margin: 18px 0 6px;
+  overflow-wrap: anywhere;
+  font-family: Consolas, monospace;
+  font-size: 0.85rem;
+}
+.folder-list {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid #e1e7db;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+.folder-list button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-bottom: 1px solid #eef1eb;
+  background: white;
+  padding: 11px 15px;
+  text-align: left;
+  width: 100%;
+  font-size: 0.875rem;
+}
+.folder-list button:hover {
+  background: #f1f6ea;
+}
+.folder-list button svg:last-child {
+  margin-left: auto;
+}
+@media (max-width: 640px) {
+  .hero-card {
+    min-height: 0;
+  }
+  .hero-copy {
+    padding-bottom: 12px;
+  }
+  .hero-copy p {
+    max-width: 100%;
+  }
+  .hero-media {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: 260px;
+    padding-bottom: 25px;
+  }
+  .hero-media video {
+    width: 240px;
+    max-height: 240px;
+  }
+  .demo-caption {
+    left: 0;
+    right: 0;
+    bottom: 14px;
+  }
+  .demo-play {
+    top: 7px;
+    right: 16px;
+  }
+  .hero-footnote {
+    max-width: 100%;
+  }
+  .help-nav {
+    display: flex;
+    width: auto;
+    margin-left: auto;
+  }
+  .sidebar > .help-nav {
+    font-size: 0;
+  }
+  .sidebar > .help-nav svg {
+    width: 20px;
+    height: 20px;
+  }
+  .readiness .check-row small {
+    max-width: 245px;
+  }
+}
