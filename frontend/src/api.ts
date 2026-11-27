@@ -65,6 +65,7 @@ export type Run = {
   settings: any;
 };
 export type State = {
+  delivery?: { mode: "local" | "docker"; data_root: string | null };
   record_issues?: { kind: string; path: string; message: string }[];
   background?: {
     id?: string;

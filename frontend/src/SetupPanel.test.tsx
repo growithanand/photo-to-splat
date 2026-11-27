@@ -89,6 +89,47 @@ function mount() {
   return view;
 }
 
+it("keeps container tools immutable while offering GPU verification", async () => {
+  state.delivery = { mode: "docker", data_root: "/data" };
+  state.diagnostic.state = "verify";
+  state.diagnostic.verified = false;
+  mount();
+  expect(
+    screen.getByRole("button", { name: "Verify GPU execution" }),
+  ).toBeEnabled();
+  expect(
+    screen.queryByRole("button", { name: "Repair managed tools" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Install missing tools" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByText(/Tools are supplied by the image/),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByText("Advanced / maintenance"));
+  expect(
+    screen.queryByRole("button", { name: /installation log/ }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByText(/Review environment paths/),
+  ).not.toBeInTheDocument();
+});
+
+it("directs a damaged container image to image replacement instead of installation", async () => {
+  missing();
+  state.delivery = { mode: "docker", data_root: "/data" };
+  mount();
+  expect(
+    screen.getByText("This container image needs attention."),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Install missing tools" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByText(/Use the GPU image and recreate the container/),
+  ).toBeInTheDocument();
+});
+
 it("takes verified users to scenes and keeps installation out of the normal flow", () => {
   mount();
   expect(

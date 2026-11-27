@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 import webbrowser
@@ -14,7 +15,7 @@ def main():
     parser.add_argument(
         "--workspace",
         type=Path,
-        default=Path.home() / "PhotoToSplat",
+        default=Path(os.getenv("PHOTOSPLAT_WORKSPACE", str(Path.home() / "PhotoToSplat"))),
         help="Application home. Place this option before the command.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
@@ -35,6 +36,7 @@ def main():
     view.add_argument("run_id")
     args = parser.parse_args()
     from .app import Services, create_app, port_free
+    from .deployment import bind_host, viewer_ports
     from .store import RunConflictError
 
     if args.command == "ui":
@@ -47,7 +49,7 @@ def main():
             import threading
 
             threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{args.port}")).start()
-        uvicorn.run(create_app(args.workspace), host="127.0.0.1", port=args.port)
+        uvicorn.run(create_app(args.workspace), host=bind_host(), port=args.port)
         return
     services = Services(args.workspace)
     if args.command == "doctor":
@@ -84,7 +86,7 @@ def main():
             parser.error("Finish training before opening this run's viewer.")
         if services.busy():
             parser.error("Finish or stop queued reconstruction work before opening the viewer.")
-        port = next((p for p in range(7010, 7030) if port_free(p)), None)
+        port = next((p for p in viewer_ports() if port_free(p)), None)
         if port is None:
             parser.error("No local viewer port is available between 7010 and 7029.")
         root = services.store.path("runs", args.run_id)

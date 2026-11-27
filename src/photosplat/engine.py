@@ -217,7 +217,7 @@ def main():
                     "--load-config",
                     config,
                     "--viewer.websocket-host",
-                    "127.0.0.1",
+                    "0.0.0.0" if os.getenv("PHOTOSPLAT_CONTAINER") == "1" else "127.0.0.1",
                     "--viewer.websocket-port",
                     sys.argv[3],
                     "--viewer.jpeg-quality",

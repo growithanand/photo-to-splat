@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .background import Tasks, task_path
+from .deployment import containerized, data_root, viewer_ports, viewer_url, workspace_path
 from .images import MAX_BYTES, estimate, import_image
 from .models import RunOptions, RuntimeOptions, SceneRequest
 from .pipeline import LABELS, STAGES, Queue, tail, terminate
@@ -48,12 +49,14 @@ class SetupRequest(BaseModel):
 
 class Services:
     def __init__(self, home: Path, worker=True):
-        self.home = home.expanduser().resolve()
+        self.home = workspace_path(home)
         self.home.mkdir(parents=True, exist_ok=True)
         self.settings = read(
             self.home / "app.json", {"workspace": str(self.home), "runtime": RuntimeOptions().model_dump()}
         )
-        self.store = Store(Path(self.settings["workspace"]))
+        self.store = Store(workspace_path(self.settings["workspace"]))
+        if containerized():
+            self.settings["runtime"] = RuntimeOptions(mode="native").model_dump()
         self.queue = Queue(self.store, self.runtime)
         self.worker_enabled = worker
         self.diagnostic = {"state": "checking", "checks": [], "verified": False}
@@ -322,6 +325,11 @@ def create_app(home: Path | None = None, worker=True):
     app = FastAPI(title="Photo to Splat", lifespan=lifespan)
     app.state.services = services
 
+    @app.get("/api/health")
+    def health():
+        # Container readiness does not imply that the host GPU has been verified.
+        return {"status": "ok"}
+
     @app.middleware("http")
     async def local_only(request: Request, call_next):
         host = request.headers.get("host", "").split(":")[0]
@@ -357,13 +365,17 @@ def create_app(home: Path | None = None, worker=True):
             "runs": services.store.list("runs"),
             "trash": [s for s in services.store.list("scenes", include_deleted=True) if s.get("deleted_at")],
             "viewers": {
-                run_id: {"url": f"http://localhost:{port}"}
+                run_id: {"url": viewer_url(port)}
                 for run_id, (process, port) in services.viewers.items()
                 if process.poll() is None
             },
             "setup": services.setup_job,
             "background": background,
             "record_issues": services.store.issues(),
+            "delivery": {
+                "mode": "docker" if containerized() else "local",
+                "data_root": str(data_root()) if containerized() else None,
+            },
             "setup_profile": services.runtime().profile(),
             "setup_reviewed": services.settings.get("setup_review") == services.runtime().profile(),
             "activity": services.activity(),
@@ -381,6 +393,11 @@ def create_app(home: Path | None = None, worker=True):
     @app.put("/api/runtime")
     @services.serialized
     def runtime(options: RuntimeOptions):
+        if containerized():
+            raise HTTPException(
+                409,
+                "Docker runtime tools are supplied by the image. Use the local uv installation for custom environments.",
+            )
         services.require_idle()
         services.settings["runtime"] = options.model_dump()
         services.save_settings()
@@ -395,7 +412,7 @@ def create_app(home: Path | None = None, worker=True):
             raise HTTPException(409, "Wait for photo import to finish before switching workspaces.")
         if not Path(options.path).is_absolute():
             raise ValueError("Choose an absolute local folder path.")
-        new_store = Store(Path(options.path))
+        new_store = Store(workspace_path(options.path))
         services.queue.close()
         services.store = new_store
         services.tasks = Tasks(new_store, services.home)
@@ -414,6 +431,8 @@ def create_app(home: Path | None = None, worker=True):
         if not target.is_absolute():
             raise ValueError("Choose an absolute directory.")
         target = target.resolve()
+        if containerized():
+            target = workspace_path(target)
         while not target.is_dir() and target.parent != target:
             target = target.parent
         try:
@@ -425,11 +444,16 @@ def create_app(home: Path | None = None, worker=True):
         except (PermissionError, OSError) as exc:
             raise HTTPException(403, "This folder is not readable. Choose another location.") from exc
         roots = (
-            [f"{chr(i)}:\\" for i in range(67, 91) if Path(f"{chr(i)}:\\").is_dir()]
-            if os.name == "nt"
-            else ["/", str(Path.home()), "/mnt"]
+            [str(data_root())]
+            if containerized()
+            else (
+                [f"{chr(i)}:\\" for i in range(67, 91) if Path(f"{chr(i)}:\\").is_dir()]
+                if os.name == "nt"
+                else ["/", str(Path.home()), "/mnt"]
+            )
         )
-        return {"path": str(target), "parent": str(target.parent), "folders": children, "roots": roots}
+        parent = target if containerized() and target == data_root() else target.parent
+        return {"path": str(target), "parent": str(parent), "folders": children, "roots": roots}
 
     @app.post("/api/setup/review")
     @services.serialized
@@ -443,6 +467,11 @@ def create_app(home: Path | None = None, worker=True):
     @app.post("/api/setup")
     @services.serialized
     def setup(request: SetupRequest | None = None):
+        if containerized():
+            raise HTTPException(
+                409,
+                "Reconstruction tools are supplied by the Docker image. Pull a tested image and recreate the container to update or repair them.",
+            )
         services.require_idle()
         request = request or SetupRequest()
         rt = services.runtime()
@@ -710,9 +739,9 @@ def create_app(home: Path | None = None, worker=True):
         if "train" not in run["completed"]:
             raise HTTPException(409, "Finish training before opening the viewer.")
         if run_id in services.live_viewers():
-            return {"url": f"http://localhost:{services.viewers[run_id][1]}"}
+            return {"url": viewer_url(services.viewers[run_id][1])}
         services.require_idle()
-        port = next((p for p in range(7010, 7030) if port_free(p)), None)
+        port = next((p for p in viewer_ports() if port_free(p)), None)
         if not port:
             raise HTTPException(409, "No local viewer port is available.")
         root = services.store.path("runs", run_id)
@@ -742,7 +771,7 @@ def create_app(home: Path | None = None, worker=True):
             terminate(p)
             services.release_viewer(run_id, p)
             raise
-        return {"url": f"http://localhost:{port}", "starting": True}
+        return {"url": viewer_url(port), "starting": True}
 
     @app.post("/api/viewers/stop")
     @services.serialized

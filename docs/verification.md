@@ -7,12 +7,13 @@ GPU checks and reconstruction results were recorded separately on the system bel
 
 | Check | Result |
 |---|---|
-| Backend tests | 69 passing on Linux/WSL; 67 passing and 2 Linux-only repair tests skipped on Windows |
-| Frontend tests | 44 passing |
+| Backend tests | 75 passing on Linux/WSL; 73 passing and 2 Linux-only repair tests skipped on Windows |
+| Frontend tests | 46 passing |
 | TypeScript and frontend build | Passing |
 | Python lint | Passing |
 | Wheel and source distribution | Built with the UI and runtime locks; local workspace files excluded |
 | Dependency advisory scans | No known findings in the lightweight app environment or frontend lockfile at the time of the check |
+| Container delivery | UI/import/restart checks, GPU execution, and photo-to-export reconstruction pass; details below |
 
 The tests cover photo imports, duplicate detection, input hashes, run recovery,
 workspace changes, concurrent requests, viewer controls, Trash, and setup state.
@@ -72,6 +73,30 @@ training, not from the camera solution.
 Recovery was checked after failed camera-tool detection and an interrupted setup.
 Those checks led to fixes for COLMAP help printed to stderr, compiler exports
 during package builds, and selection of an incomplete CUDA toolkit.
+
+## Container verification
+
+The Docker route was checked on 27 November 2026 using Docker Desktop 29.8.2,
+Compose 5.6.0, and the GPU above. The image uses Ubuntu 24.04 and the same locked
+training tools. It runs as UID/GID 10001 with a read-only root filesystem.
+
+Checks covered a first-use gsplat compilation and render/gradient test, PyTorch's
+training compiler, browser photo imports, and scene/GPU-test persistence after
+container replacement. Compilation caches use the writable `/cache` volume.
+
+A separate 27-photo capture completed all nine stages through Compose:
+
+| Measurement | Container result |
+|---|---|
+| Registered cameras / sparse points | 26 / 27 cameras; 3,525 points |
+| Training budget | 1,200 steps at an 800px image edge |
+| Train / validation / test split | 21 / 2 / 3 photos |
+| Gaussian PLY export | 5.7 MiB |
+| Held-out PSNR / SSIM / LPIPS | 20.10 / 0.726 / 0.436 |
+
+The saved checkpoint rendered in the browser at the 1600px preview setting
+through a remapped host viewer port. This was a short viewer check on the same
+GPU system; it does not resolve the longer-session limitation below.
 
 ## Known limits
 

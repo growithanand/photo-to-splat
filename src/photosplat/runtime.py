@@ -13,6 +13,7 @@ from pathlib import Path, PureWindowsPath
 
 import psutil
 
+from .deployment import containerized
 from .models import RuntimeOptions
 
 
@@ -26,7 +27,9 @@ def linux_path(path: str | Path) -> str:
 
 class Runtime:
     def __init__(self, settings: dict | None = None):
-        self.options = RuntimeOptions(**(settings or {}))
+        self.options = (
+            RuntimeOptions(mode="native") if containerized() else RuntimeOptions(**(settings or {}))
+        )
         self.wsl = self.options.mode == "wsl" or (self.options.mode == "auto" and os.name == "nt")
         self.engine = Path(__file__).with_name("engine.py").resolve()
         self.script = Path(__file__).with_name("runtime.sh").resolve()
@@ -43,7 +46,7 @@ class Runtime:
         ]
         payload = {
             "runtime": self.options.model_dump(),
-            "host": [platform.node(), sys.platform, platform.machine()],
+            "host": ["container" if containerized() else platform.node(), sys.platform, platform.machine()],
             "files": {
                 name: hashlib.sha256((self.engine.parent / name).read_bytes()).hexdigest() for name in files
             },
@@ -115,7 +118,11 @@ class Runtime:
                 id="platform",
                 name="Execution platform",
                 state="ready" if supported else "unsupported",
-                detail="Windows + WSL2" if self.wsl else platform.system(),
+                detail="Linux container"
+                if containerized()
+                else "Windows + WSL2"
+                if self.wsl
+                else platform.system(),
                 hint="Training is supported on Linux x86_64 or Windows through WSL2.",
             )
         )
@@ -183,6 +190,16 @@ class Runtime:
                 checks.append(dict(id=key, name=name, state="ready", detail=detail[:180], hint=hint))
             except (OSError, RuntimeError, ValueError, subprocess.TimeoutExpired) as exc:
                 checks.append(dict(id=key, name=name, state="missing", detail=str(exc)[-400:], hint=hint))
+        if containerized():
+            for check in checks:
+                if check["id"] == "gpu":
+                    check["hint"] = (
+                        "Check the host NVIDIA driver and Docker GPU access. The container does not install a host driver."
+                    )
+                elif check["id"] in {"colmap", "training", "compiler"}:
+                    check["hint"] = (
+                        "Use the GPU image and recreate the container from a tested image version. Tools are supplied by the image."
+                    )
         tool_ids = {"colmap", "training", "compiler"}
         missing = [c["id"] for c in checks if c["id"] in tool_ids and c["state"] != "ready"]
         installed = not missing
@@ -198,7 +215,8 @@ class Runtime:
             else "attention",
             tools_installed=installed,
             missing_tools=missing,
-            managed=not (self.options.train_prefix or self.options.sfm_prefix),
+            managed=not containerized() and not (self.options.train_prefix or self.options.sfm_prefix),
+            delivery="docker" if containerized() else "local",
             fingerprint=hashlib.sha256(
                 json.dumps({"profile": self.profile(), "inventory": inventory}, sort_keys=True).encode()
             ).hexdigest()

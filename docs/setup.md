@@ -6,6 +6,9 @@ Browser UI → lightweight Python .venv → Linux worker
                                        └─ uv GPU environment + native CUDA/compiler
 ```
 
+This page describes the local uv route. The [Docker walkthrough](docker.md)
+uses the same tools inside an image and does not run the local installer.
+
 ## What each dependency does
 
 The **NVIDIA driver** connects the OS to the GPU. Install it through NVIDIA or
@@ -26,6 +29,8 @@ The first sync can download a compatible Python without replacing another projec
 Install WSL2 Ubuntu 24.04 or newer through Microsoft's instructions if missing.
 The managed native profile requires x86_64 Linux with glibc 2.39 or newer;
 the complete system check used Ubuntu 26.04 under WSL2.
+The pinned COLMAP packages also require an x86-64-v3 CPU or newer, including
+AVX2/FMA support. See [GCC's x86 architecture descriptions](https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html).
 `wsl --list --verbose` should show the intended distribution at version 2.
 `wsl -d Ubuntu -- nvidia-smi` should show the device. Select a different installed
 distribution name in Computer & setup when appropriate.

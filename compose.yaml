@@ -1,0 +1,31 @@
+name: photo-to-splat
+services:
+  studio:
+    # Build with compose.build.yaml, or select an image with PHOTOSPLAT_IMAGE.
+    image: ${PHOTOSPLAT_IMAGE:-photo-to-splat:local}
+    platform: linux/amd64
+    ports:
+      - "127.0.0.1:${PHOTOSPLAT_UI_PORT:-8765}:8765"
+      - "127.0.0.1:${PHOTOSPLAT_VIEWER_PORT:-7010}:7010"
+    environment:
+      PHOTOSPLAT_VIEWER_PORT: ${PHOTOSPLAT_VIEWER_PORT:-7010}
+    volumes:
+      - scenes:/data
+      - cache:/cache
+    read_only: true
+    tmpfs:
+      - /tmp:size=2g,mode=1777
+    shm_size: 2gb
+    stop_grace_period: 1m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+volumes:
+  scenes:
+  cache:

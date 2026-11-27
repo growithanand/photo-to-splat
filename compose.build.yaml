@@ -1,0 +1,6 @@
+services:
+  studio:
+    build:
+      context: .
+      target: gpu
+    pull_policy: build

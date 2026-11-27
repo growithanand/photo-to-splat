@@ -19,6 +19,7 @@ def check(directory):
             "gpu/sfm-linux-64.lock",
             "setup-runtime.sh",
             "background.py",
+            "deployment.py",
         ]
         for name in required:
             assert f"photosplat/{name}" in names, f"Missing wheel file: {name}"
@@ -28,6 +29,17 @@ def check(directory):
                 assert archive.read(name) == file.read_bytes(), f"Stale bundled UI: {name}"
     with tarfile.open(source) as archive:
         source_names = archive.getnames()
+    source_files = {name.partition("/")[2] for name in source_names}
+    for name in (
+        "Dockerfile",
+        ".dockerignore",
+        ".env.example",
+        "compose.yaml",
+        "compose.build.yaml",
+        "docs/docker.md",
+        "scripts/smoke_container.py",
+    ):
+        assert name in source_files, f"Missing source delivery file: {name}"
     excluded = {
         "agents.md",
         "claude.md",

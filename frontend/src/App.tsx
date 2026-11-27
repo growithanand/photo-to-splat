@@ -2157,6 +2157,7 @@ function RuntimeSettings({ state, act, acting }: any) {
 }
 
 function Storage({ state, act, importing, acting }: any) {
+  const container = state.delivery?.mode === "docker";
   const [path, setPath] = useState(state.settings.workspace);
   const [picking, setPicking] = useState(false);
   useEffect(
@@ -2168,7 +2169,11 @@ function Storage({ state, act, importing, acting }: any) {
       <PageTitle
         eyebrow="WORKSPACE FILES"
         title="Workspace storage."
-        text="Choose a local folder with room for imported photos, working copies, checkpoints, and exports."
+        text={
+          container
+            ? "Your scenes are saved in the Docker volume mounted at /data. Workspace folders must stay inside it."
+            : "Choose a local folder with room for imported photos, working copies, checkpoints, and exports."
+        }
       />
       <section className="card storage-card">
         <HardDrive size={35} />
@@ -2178,8 +2183,9 @@ function Storage({ state, act, importing, acting }: any) {
             : `${bytes(state.diagnostic.free_bytes)} available`}
         </h2>
         <p>
-          Free space on the selected workspace volume. Linux tool environments
-          may live on a different volume.
+          {container
+            ? "This is free space on Docker's storage volume, which may have a different capacity from your host drive. Browser photo selection can still import files from your system."
+            : "Free space on the selected workspace volume. Linux tool environments may live on a different volume."}
         </p>
         <form
           onSubmit={(e) => {
@@ -2212,8 +2218,9 @@ function Storage({ state, act, importing, acting }: any) {
             </p>
           )}
           <p className="small muted">
-            Use an absolute folder path. Switching opens a separate workspace;
-            it does not move or delete previous scenes.
+            {container
+              ? "Choose /data or a subfolder. Replacing the container preserves attached volumes; deleting the scenes volume permanently removes its data."
+              : "Use an absolute folder path. Switching opens a separate workspace; it does not move or delete previous scenes."}
           </p>
           <div className="button-row">
             <Button
@@ -2259,6 +2266,7 @@ function Storage({ state, act, importing, acting }: any) {
         open={picking}
         close={() => setPicking(false)}
         initial={path}
+        container={container}
         choose={(value: string) => {
           setPath(value);
           setPicking(false);
@@ -2268,7 +2276,13 @@ function Storage({ state, act, importing, acting }: any) {
   );
 }
 
-function FolderPicker({ open, close, initial, choose }: any) {
+function FolderPicker({
+  open,
+  close,
+  initial,
+  choose,
+  container = false,
+}: any) {
   const [listing, setListing] = useState<any>(null);
   const [error, setError] = useState("");
   const [child, setChild] = useState("");
@@ -2288,7 +2302,11 @@ function FolderPicker({ open, close, initial, choose }: any) {
       open={open}
       onOpenChange={close}
       title="Choose a workspace location"
-      description="Browse folders visible to the local application. Nothing is moved or created until you save the workspace."
+      description={
+        container
+          ? "These are folders inside the persistent /data volume, rather than folders on your host system. Import source photos through the scene's photo picker."
+          : "Browse folders visible to the local application. Nothing is moved or created until you save the workspace."
+      }
       wide
     >
       {error && <p className="inline-error">{error}</p>}
@@ -2311,6 +2329,7 @@ function FolderPicker({ open, close, initial, choose }: any) {
             variant="ghost"
             size="small"
             onClick={() => load(listing.parent)}
+            disabled={listing.parent === listing.path}
           >
             Parent folder
           </Button>

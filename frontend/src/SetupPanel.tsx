@@ -29,12 +29,17 @@ export function SetupContent({
   storage?: () => void;
 }) {
   const d = state.diagnostic;
+  const container =
+    state.delivery?.mode === "docker" || d.delivery === "docker";
   const checking = ["checking", "verifying"].includes(d.state);
   const installed =
     d.tools_installed ?? (d.verified || ["verify", "ready"].includes(d.state));
   const managed =
-    d.managed ??
-    !(state.settings.runtime.train_prefix || state.settings.runtime.sfm_prefix);
+    !container &&
+    (d.managed ??
+      !(
+        state.settings.runtime.train_prefix || state.settings.runtime.sfm_prefix
+      ));
   const storageProblem = d.checks.some(
     (c: any) => c.id === "storage" && c.state !== "ready",
   );
@@ -90,15 +95,17 @@ export function SetupContent({
         ? "Resolve your computer's prerequisites."
         : storageProblem
           ? "Make room for reconstruction."
-          : installed && d.verified
-            ? "Your tools are installed and verified."
-            : installed
-              ? "Your tools are installed."
-              : !missingTools
-                ? "We could not finish checking this setup."
-                : managed
-                  ? "Install the missing reconstruction tools."
-                  : "Check your custom environment paths.";
+          : container && !installed
+            ? "This container image needs attention."
+            : installed && d.verified
+              ? "Your tools are installed and verified."
+              : installed
+                ? "Your tools are installed."
+                : !missingTools
+                  ? "We could not finish checking this setup."
+                  : managed
+                    ? "Install the missing reconstruction tools."
+                    : "Check your custom environment paths.";
 
   return (
     <section className="setup-content setup-panel">
@@ -120,7 +127,9 @@ export function SetupContent({
               : checking
                 ? "We look for tools already on this computer before offering installation."
                 : unsupported
-                  ? "Check the platform and NVIDIA-driver results. Installing Python packages will not resolve those prerequisites."
+                  ? container
+                    ? "Check Docker GPU access and the host NVIDIA driver. The image supplies the reconstruction tools."
+                    : "Check the platform and NVIDIA-driver results. Installing Python packages will not resolve those prerequisites."
                   : storageProblem
                     ? "Choose a workspace with more free space. Your installed tools do not need reinstalling."
                     : installed && d.verified
@@ -131,11 +140,13 @@ export function SetupContent({
                           : d.verification_changed
                             ? "Your environment changed since the last GPU test. Verify the current setup before reconstructing."
                             : "Run the Gaussian render and gradient test once to confirm this environment works."
-                        : !missingTools
-                          ? "Review the check error and retry tool detection before deciding whether installation is needed."
-                          : managed
-                            ? "Only the components below need setup. Installed components are kept."
-                            : "Fix the selected paths under Advanced / maintenance, or clear them to use managed tools. Managed setup does not replace custom environments."}
+                        : container
+                          ? "Use the GPU image and recreate the container from a tested version. Tool installation is handled when the image is built."
+                          : !missingTools
+                            ? "Review the check error and retry tool detection before deciding whether installation is needed."
+                            : managed
+                              ? "Only the components below need setup. Installed components are kept."
+                              : "Fix the selected paths under Advanced / maintenance, or clear them to use managed tools. Managed setup does not replace custom environments."}
           </p>
           {installed && d.verified_at && (
             <p className="small muted">
@@ -261,12 +272,18 @@ export function SetupContent({
           Advanced / maintenance
         </summary>
         <p className="muted">
-          Review environment paths, inspect installation logs, or explicitly
-          rerun managed setup. Creating another scene does not require setup
-          again.
+          {container
+            ? "Creating another scene reuses the tools already packaged in this container."
+            : "Review environment paths, inspect installation logs, or explicitly rerun managed setup. Creating another scene does not require setup again."}
         </p>
-        {runtimeSettings}
-        {managed ? (
+        {!container && runtimeSettings}
+        {container ? (
+          <p className="small muted">
+            Tools are supplied by the image. To update or repair them, pull a
+            tested image version and recreate the container. Keep the scenes
+            volume attached to retain your results.
+          </p>
+        ) : managed ? (
           <>
             <p className="small muted">
               Managed repair restores missing tools and synchronizes pinned
@@ -291,10 +308,12 @@ export function SetupContent({
             selected.
           </p>
         )}
-        <Button variant="ghost" onClick={() => setShowLog(!showLog)}>
-          <Terminal size={16} />
-          {showLog ? "Hide" : "Show"} installation log
-        </Button>
+        {!container && (
+          <Button variant="ghost" onClick={() => setShowLog(!showLog)}>
+            <Terminal size={16} />
+            {showLog ? "Hide" : "Show"} installation log
+          </Button>
+        )}
       </details>
       {logVisible && (
         <pre className="log" aria-label="Installation log">
