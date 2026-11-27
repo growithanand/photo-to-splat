@@ -10,7 +10,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// shadcn-style primitives keep focus handling and variants in one place.
+// Share button variants and dialog focus handling across the app.
 const variants = cva("button", {
   variants: {
     variant: {

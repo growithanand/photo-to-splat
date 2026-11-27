@@ -1,4 +1,4 @@
-# One active operation, with a clear way back to it
+# Coordinating GPU work
 
 ```text
 Start / Resume → lock workspace records → check active work → reserve queued run
@@ -10,9 +10,9 @@ Start / Resume → lock workspace records → check active work → reserve queu
                                                            release lock
 ```
 
-The worker always ran jobs sequentially. The earlier interface still accepted
-extra submissions while a job was active. The policy now rejects those extra
-submissions, rather than silently building a queue the user did not expect.
+Each workspace allows one reconstruction or managed GPU task at a time. A second
+Start or Resume request returns the current activity so the user can open the
+running job instead of accidentally adding another one.
 
 | Action | Allowed when |
 |---|---|
@@ -34,14 +34,15 @@ until they exit. Exception paths release the reservation.
 The UI derives active work from run records as well as the server's activity
 response. It refreshes on focus and after rejected requests, displays a link to
 the active run, and uses immediate click guards while Start/Resume is pending.
-UI controls are guidance; backend admission remains authoritative.
+The server checks every request again. This also covers requests from another
+tab or app instance, where the displayed status may be out of date.
 
-Tests use two independent app instances, simultaneous HTTP requests, background
-task barriers, CPU-only stand-in processes and injected failures. They do not
-start CUDA or install dependencies.
+Tests send simultaneous requests through two app instances and simulate failures
+while a background task holds the lock. They use CPU processes and temporary
+workspaces, so no CUDA work or package installation is needed.
 
 This is coordination within one workspace, not a machine-wide GPU scheduler.
 Another workspace, a direct third-party training command, or a forcibly orphaned
 Linux process can still occupy the device. Keep one workspace active per GPU and
-inspect retained process/log information after an abnormal shutdown. Old queued
-records are preserved; this update does not cancel or delete existing work.
+inspect the process list and logs after an abnormal shutdown. Any older queued
+records are preserved and processed sequentially.

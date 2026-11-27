@@ -154,11 +154,11 @@ describe("workspace navigation and scene management", () => {
       ),
     );
     await screen.findByRole("heading", {
-      name: "Your photos. Another dimension.",
+      name: "Your reconstruction workspace.",
     });
     history.back();
     await screen.findByRole("heading", {
-      name: "A place for every perspective.",
+      name: "My scenes",
     });
   });
   it("restores a deep run URL after refresh and links back to its scene", async () => {
@@ -329,7 +329,7 @@ it("keeps importing while the user returns to the scene library", async () => {
   await screen.findByText(/Importing: 0\/16 files/);
   fireEvent.click(screen.getByRole("button", { name: /My scenes/ }));
   await screen.findByRole("heading", {
-    name: "A place for every perspective.",
+    name: "My scenes",
   });
   release();
   await screen.findByText(/Import checked: 16\/16 files/);
@@ -740,4 +740,44 @@ it("refreshes activity after the server rejects a stale Start request", async ()
   expect(screen.getByRole("alert")).toHaveTextContent(
     "Another reconstruction started in a different tab.",
   );
+});
+
+it("keeps missing tools visible in the compact system summary and links to all checks", async () => {
+  history.replaceState(null, "", "/#/overview");
+  data.diagnostic = {
+    state: "setup",
+    verified: false,
+    checks: [
+      {
+        id: "gpu",
+        name: "NVIDIA graphics",
+        state: "ready",
+        detail: "NVIDIA Test GPU, 8192 MiB, driver-1, uuid-test",
+      },
+      {
+        id: "colmap",
+        name: "Camera reconstruction",
+        state: "ready",
+        detail: "COLMAP",
+      },
+      {
+        id: "training",
+        name: "Python training environment",
+        state: "missing",
+        detail: "Not installed",
+      },
+      {
+        id: "compiler",
+        name: "CUDA compiler",
+        state: "missing",
+        detail: "Not installed",
+      },
+    ],
+  };
+  render(<App />);
+  expect(await screen.findByText("Python training environment")).toBeVisible();
+  expect(screen.getByText("CUDA compiler")).toBeVisible();
+  expect(screen.queryByText("Camera reconstruction")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("link", { name: "View all system checks" }));
+  expect(await screen.findByText("Camera reconstruction")).toBeVisible();
 });

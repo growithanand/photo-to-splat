@@ -2,7 +2,8 @@
 
 | Symptom | Check | Recovery |
 |---|---|---|
-| UI does not open | uv version, terminal output, local port | Run from repo root; use `photosplat ui --port 8766` if 8765 is occupied |
+| UI does not open | uv version and terminal output | Run from the repository root and keep the terminal open |
+| Port 8765 is already in use | An earlier app instance may still be running | Open http://localhost:8765 first. If an unrelated program owns the port, use `uv run --locked --no-dev photosplat ui --port 8766` |
 | WSL missing | `wsl --list --verbose` | Install WSL2/Ubuntu or select the installed distribution's name |
 | GPU missing | Driver and WSL nvidia-smi | Use supported hardware/driver; do not guess torch wheel versions |
 | Render test fails | Compiler, headers, architecture, log | Finish native setup and use the pinned profile; first build takes time |

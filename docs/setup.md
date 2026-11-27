@@ -1,4 +1,4 @@
-# Set up the computer before reconstructing
+# Setup and environments
 
 ```text
 Browser UI → lightweight Python .venv → Linux worker
@@ -6,7 +6,7 @@ Browser UI → lightweight Python .venv → Linux worker
                                        └─ uv GPU environment + native CUDA/compiler
 ```
 
-## Separate the responsibilities
+## What each dependency does
 
 The **NVIDIA driver** connects the OS to the GPU. Install it through NVIDIA or
 the system manufacturer. The app does not replace it. The **PyTorch wheel** supplies
@@ -14,8 +14,8 @@ libraries for its CUDA build; a CPU wheel cannot train on your NVIDIA device.
 The **development toolkit** supplies nvcc and headers for compiling gsplat.
 The **host C++ compiler** builds bindings and must be compatible with nvcc.
 
-The provided profile manages the last three pieces in isolated prefixes instead
-of mixing them into system Python. Driver/WSL installation remains a system step.
+The managed profile installs the training packages, toolkit, and compiler in
+separate environments. Install the NVIDIA driver and WSL at system level first.
 
 ## Windows walkthrough
 
@@ -45,7 +45,7 @@ profile, so revisiting the page does not reset it. A changed profile asks for a
 fresh review. Healthy setups lead to **Go to my scenes**; installed setups without
 a matching GPU test offer **Verify GPU execution**.
 
-Read the confirmation before selecting installation. The script downloads uv
+After reviewing the requirements, start installation. The script downloads uv
 inside Linux if needed, bootstraps micromamba, creates native/COLMAP prefixes,
 and syncs the locked GPU project into `train`. Keep the terminal open during setup.
 The standard root is `~/.local/share/photo-to-splat`. An explicit Linux
@@ -54,8 +54,8 @@ The standard root is `~/.local/share/photo-to-splat`. An explicit Linux
 The checked-in `native-linux-64.lock` and `sfm-linux-64.lock` pin native package
 URLs and hashes. Setup installs those builds, then exports `native-explicit.txt`
 and `sfm-explicit.txt` to record the installed prefixes. The Python profile has
-a separate checked-in uv lock. These package locks and the system driver are
-distinct reproducibility inputs; a Python lock does not lock the workstation.
+a separate checked-in uv lock. The package locks record installed software;
+the system driver and OS are separate parts of the environment.
 
 Existing Linux prefixes can be configured in the app. A Conda training prefix
 may own its toolkit; a plain uv prefix uses managed native tools. The runtime

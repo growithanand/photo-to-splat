@@ -1,34 +1,57 @@
 # Photo to Splat
 
-**Your photos. Another dimension.** A local, guided studio for creating Gaussian
-splatting reconstructions from overlapping photographs.
+Turn a set of overlapping photos into a 3D scene you can explore on your own
+system. Photo to Splat uses COLMAP to estimate camera poses and Nerfstudio's
+Splatfacto to train a Gaussian representation of the scene.
 
-Watch an [example reconstruction](frontend/public/demo.mp4), check your computer,
-import a capture, and let the application connect the reconstruction tools. Keep
-separate scenes and repeat experiments without replacing earlier runs.
+The local interface handles setup checks, photo imports, training runs, and
+saved results. Each run keeps its own inputs and settings, so you can try another
+capture or compare settings without replacing earlier work.
+
+The [example reconstruction](frontend/public/demo.mp4) shows a trained synthetic
+owl scene. Your own photos and reconstructions stay local.
 
 ![Workflow: check the system, import photos, estimate cameras, train Gaussians, compare views, then explore and export.](docs/assets/workflow.svg)
 
-## What this project creates
+## The local studio
 
-The result is an **appearance representation** you can explore from nearby new
-viewpoints. It is not a watertight CAD mesh, a guarantee of physical dimensions,
-or reliable geometry for surfaces never photographed.
+The overview brings together the example scene, system checks, and your saved
+captures. You can pause the example orbit while reviewing your setup.
 
-- A React/TypeScript studio served locally by FastAPI, with a prerecorded orbit
-  of an actual trained synthetic Gaussian scene on the welcome screen.
-- Readiness checks for NVIDIA graphics, execution platform, tools, and storage.
-- An explicit GPU render **and backward-pass** test. Finding a GPU alone does
-  not mark the computer verified.
-- Folder or individual-photo import, orientation correction, thumbnails,
-  content deduplication, and stable copies of accepted originals.
-- Independent scenes and run snapshots, one active reconstruction, stage logs,
-  checkpoint recovery, integrity checks, comparisons, and Gaussian PLY export.
+![Dark studio overview with a synthetic Gaussian scene, system checks, and an empty scene collection.](docs/assets/studio-overview.jpg)
+
+<details>
+<summary>See the setup view</summary>
+
+Verified tools are reused across scenes. Repair controls and custom environment
+paths stay under **Advanced / maintenance**.
+
+![Setup view showing installed tools, a saved GPU verification, and optional maintenance controls.](docs/assets/studio-setup.jpg)
+
+</details>
+
+These captures show an empty workspace on the tested Windows/WSL2 system. The
+owl is the included synthetic example; the system checks reflect that environment.
+
+## What you get
+
+The output is a Gaussian scene that reproduces the photographed appearance from
+nearby viewpoints. You can open it in the viewer, compare rendered images with
+held-out photos, and export a Gaussian PLY. A printable mesh and measured physical
+dimensions are outside this workflow.
+
+- A React/TypeScript interface served by a local FastAPI process.
+- Checks for the GPU, execution environment, tools, and available storage.
+- A Gaussian render and gradient test before using the training environment.
+- Photo-folder and individual-file imports, thumbnails, orientation handling,
+  duplicate detection, and copies of the original files.
+- Separate scenes and runs, progress logs, stop/resume controls, image comparisons,
+  and Gaussian PLY export.
 
 ## Can my system run it?
 
-The studio supports compatible desktop and portable systems. Its dashboard starts
-without the GPU stack and explains missing requirements. Reconstruction needs:
+The dashboard runs on Windows and Linux without the training tools installed.
+For reconstruction, a compatible desktop or portable system needs:
 
 | Requirement | Supported configuration |
 |---|---|
@@ -44,22 +67,22 @@ The tested system has **24 GB of GPU memory**. See the
 [verification record](docs/verification.md) for its exact GPU model, checks,
 and known limitations.
 
-RAM figures are planning targets, not tested minimum guarantees. We have not
-established a minimum-VRAM cutoff. Resolution, photo count, Gaussian growth, and
-other GPU programs affect memory use. Start small and run the execution test.
+Memory use depends on image resolution, photo count, Gaussian growth, and other
+programs using the GPU. The RAM allowance is a planning guide. Start with a small
+capture and run the GPU execution test before a larger reconstruction.
 
 The training profile pins **PyTorch 2.7.1 + CUDA 12.8**, **Nerfstudio 1.1.5**,
 **gsplat 1.4.0**, and GPU-enabled **COLMAP 3.13.0 / CUDA 12.9**. The NVIDIA driver
 must support the selected runtimes, including COLMAP's 12.9 build. Use your
-vendor-supported driver. `nvidia-smi` reports driver CUDA capability, not proof
-that the development toolkit is installed.
+vendor-supported driver. The CUDA version shown by `nvidia-smi` describes the
+driver's capability; the development toolkit is installed separately.
 
 AMD, Intel integrated GPUs, Apple Silicon, CPU-only Gaussian training, native
 Windows GPU training without WSL, multi-GPU execution, and managed cloud jobs
-are outside the first release's supported training route. The UI can explain
-compatibility but cannot turn an unsupported device into a CUDA GPU.
+are currently unsupported for training. Photo import and review remain available
+without a supported training GPU.
 
-## First launch: no code to edit
+## Run the app
 
 ### Windows
 
@@ -91,8 +114,8 @@ training profile requires Linux x86_64, glibc 2.39+, and a working NVIDIA driver
 Ubuntu 24.04+ is the target; Ubuntu 26.04 under WSL2 is the exercised route.
 Other distributions need compatible native libraries.
 
-**Success looks like:** the studio opens with an example orbit and readiness
-cards. Missing tools produce **Setup needed**, not a demand to edit Python.
+The welcome page shows an example reconstruction and checks your environment.
+Open **Computer & setup** to resolve any missing requirements.
 
 ## Set up reconstruction tools
 
@@ -118,13 +141,14 @@ Plan for roughly **15–30 GB for tools/download caches**, in addition to scene
 data. This is an allowance, not an exact download size. On Windows, Linux tools
 usually occupy the WSL virtual disk, possibly on a different volume from photos.
 
-The dashboard does not depend on torch. Micromamba isolates native tools; uv owns
-Python packages. A virtual environment and a PyTorch CUDA wheel do not supply
-the system driver. A separate toolkit/compiler is needed for gsplat extensions.
+The dashboard does not import torch. Micromamba manages native tools, while uv
+manages Python packages. The NVIDIA driver stays installed at system level;
+the isolated toolkit and compiler build gsplat extensions when needed.
 
-Existing compatible environments can be entered as Linux **prefix directories**
-under **Use your own environments**. Leave fields blank for managed setup; do
-not enter Windows `.venv` paths or paths to individual executables.
+To use an existing environment, open **Advanced / maintenance → Use your own
+environments** and enter its Linux prefix directory. Leave the fields blank for
+managed setup. These fields take environment directories, rather than individual
+executables or Windows `.venv` paths.
 
 After setup, choose **Verify GPU execution**. First execution can compile kernels
 and take several minutes. Success means a real Gaussian image was rendered and
@@ -140,8 +164,8 @@ Returning users do not need to install tools for each scene. A successful GPU
 test is saved with its date and environment fingerprint. Startup and **Recheck
 tools** reuse it when the detected environment matches; changed tools, runtime
 paths, GPU/driver, or bundled profile require verification again. A failed retest
-replaces the previous success. This records a past execution test, rather than
-claiming every future GPU operation will succeed.
+replaces the previous success. The displayed date identifies the last GPU test;
+it is not a new GPU test on every launch.
 
 **Advanced / maintenance** contains custom runtime settings, logs, and an
 explicit **Repair managed tools** flow. Repair may download packages; it reuses
@@ -167,10 +191,11 @@ lead to workspace storage, rather than suggesting reinstallation.
 
 ### Photo guidance
 
-Around 80–200 sharp, overlapping photographs of a stationary object or small
-scene are a useful starting point. The 12-photo guardrail is not a quality
-promise. Move the camera, keep the object still, and cover several heights. Use
-one lens/zoom setting and soft consistent lighting. Missing undersides remain uncertain.
+Start with around 80–200 sharp, overlapping photographs of a stationary object
+or small scene. Move the camera, keep the object still, and cover several heights.
+Use one lens/zoom setting and soft, consistent lighting. The app requires at least
+12 photos, but that threshold alone says little about reconstruction quality.
+Surfaces that were never photographed will have little or no supporting detail.
 
 JPEG, PNG, TIFF, and WebP are accepted. Convert HEIC/RAW first. Images above 80 MP
 or files above 50 MB are rejected with an explanation. Phone 12 MP captures are
@@ -316,10 +341,14 @@ CPU CI cannot prove GPU compatibility: see [verification evidence](docs/verifica
 
 ## Scope, privacy, and reproducibility
 
-This is an orchestration project, not a new reconstruction algorithm. COLMAP
-estimates cameras; Splatfacto trains using gsplat. Reproducibility means locked
-dependencies, recorded inputs/settings, and an inspectable procedure. Exact pixels
-can differ across hardware, drivers, compilers, and nondeterministic GPU operations.
+This project connects COLMAP, Nerfstudio, and gsplat through a local workflow.
+COLMAP estimates cameras; Splatfacto trains the Gaussian scene using gsplat. The
+application adds setup checks, data management, run coordination, recovery, and
+result inspection around those tools.
+
+Dependency locks, input hashes, settings, and command records make a run easier
+to reproduce. Exact pixels can still differ across hardware, drivers, compilers,
+and GPU operations.
 
 The Linux native and COLMAP builds have hashed explicit package locks under
 `src/photosplat/gpu`. Setup also exports the installed package builds. These
@@ -330,9 +359,6 @@ The repository excludes personal photos, workspaces, local runtime paths, large
 checkpoints, and exports. The public owl demo is synthetic; provenance is in
 `frontend/public/demo.provenance.json`. Review local paths/photo names in manifests
 before sharing them. Dependencies retain their own licenses. Application code is MIT.
-
-No commit, push, or publication is performed by the application. Portfolio
-publication is a separate review step.
 
 ### Upstream references
 

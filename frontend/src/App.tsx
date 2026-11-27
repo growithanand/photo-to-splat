@@ -37,6 +37,7 @@ import { Button, Modal, cn } from "./components/ui";
 import "./style.css";
 import "./refinements.css";
 import "./workspace.css";
+import "./studio.css";
 import { useRoute, sceneLink, runLink } from "./navigation";
 import { SceneLibrary, TrashView, active, statusLabel } from "./SceneLibrary";
 import { readDraft, saveDraft } from "./drafts";
@@ -362,10 +363,8 @@ export function App() {
         </nav>
         <div className="sidebar-note">
           <ShieldCheck size={22} />
-          <strong>Made on your machine.</strong>
-          <p>
-            Your photos and reconstructions stay local. You own the results.
-          </p>
+          <strong>Local by default.</strong>
+          <p>Photos, checkpoints, and results stay in your workspace.</p>
         </div>
         <button
           className={cn("nav-item help-nav", page === "help" && "selected")}
@@ -425,7 +424,7 @@ export function App() {
           <div className="topbar-right">
             <span className="privacy">
               <ShieldCheck size={15} />
-              Private by design
+              Local processing
             </span>
             <Button size="small" onClick={beginScene}>
               <Plus size={16} />
@@ -578,11 +577,10 @@ export function App() {
             <>
               <div className="page-heading">
                 <div>
-                  <div className="eyebrow">A DIFFERENT PERSPECTIVE</div>
-                  <h1>Your photos. Another dimension.</h1>
+                  <div className="eyebrow">RECONSTRUCTION STUDIO</div>
+                  <h1>Your reconstruction workspace.</h1>
                   <p>
-                    Bring an object or a place back to life, one photograph at a
-                    time.
+                    Turn overlapping photos into a 3D scene, one run at a time.
                   </p>
                 </div>
               </div>
@@ -591,15 +589,15 @@ export function App() {
                   <div className="hero-copy">
                     <span className="hero-pill">
                       <Sparkles size={14} />
-                      FROM PHOTOS TO PRESENCE
+                      PHOTOS TO GAUSSIANS
                     </span>
                     <h2>
-                      A scene you can <br />
-                      step back into.
+                      Start with photos. <br />
+                      Explore in 3D.
                     </h2>
                     <p>
-                      Choose your overlapping photos. We’ll guide you from a
-                      first camera check to a 3D scene you can explore.
+                      Import a capture, find the cameras, and train a scene you
+                      can revisit. Each run keeps its own settings and results.
                     </p>
                     <Button className="button-light" onClick={beginScene}>
                       <Plus size={17} />
@@ -608,15 +606,19 @@ export function App() {
                         : "Create your first scene"}
                     </Button>
                     <span className="hero-footnote">
-                      No code to write. No photos sent to the cloud.
+                      Runs on your system. Your photos stay local.
                     </span>
                   </div>
                   <div className="hero-media">
+                    <div className="preview-label">
+                      <span>EXAMPLE SCENE</span>
+                      <span>360° orbit</span>
+                    </div>
                     <Demo />
                     <div className="demo-caption">
                       <span>
                         <Film size={14} />
-                        Actual Gaussian reconstruction
+                        Trained Gaussian scene
                       </span>
                       <small>Synthetic example · prerecorded orbit</small>
                     </div>
@@ -628,22 +630,17 @@ export function App() {
                   open={() => setSetupOpen(true)}
                   verify={() => act(() => api("/diagnostics?verify=true", {}))}
                   proceed={() => navigate("scenes")}
+                  compact
                 />
               </div>
-              <section className="journey">
-                <div className="journey-intro">
-                  <span className="eyebrow">
-                    A LITTLE GUIDANCE, ALL THE WAY
-                  </span>
-                  <h3>From a folder to a feeling of being there.</h3>
-                </div>
+              <section className="journey" aria-label="Reconstruction workflow">
                 <div className="journey-step">
                   <div className="step-icon">
                     <FolderOpen />
                   </div>
                   <div>
-                    <strong>Bring your photos</strong>
-                    <p>One object or scene, from overlapping viewpoints.</p>
+                    <strong>Import a capture</strong>
+                    <p>Overlapping photos of one object or place.</p>
                   </div>
                 </div>
                 <div className="journey-step">
@@ -651,8 +648,8 @@ export function App() {
                     <Aperture />
                   </div>
                   <div>
-                    <strong>Let the scene take shape</strong>
-                    <p>We find cameras, then learn the 3D appearance.</p>
+                    <strong>Reconstruct the scene</strong>
+                    <p>Estimate cameras, then train the Gaussians.</p>
                   </div>
                 </div>
                 <div className="journey-step">
@@ -660,8 +657,8 @@ export function App() {
                     <Box />
                   </div>
                   <div>
-                    <strong>Make room to explore</strong>
-                    <p>Orbit, compare, export, and return whenever you like.</p>
+                    <strong>Review and export</strong>
+                    <p>Compare views, open the viewer, and save a PLY.</p>
                   </div>
                 </div>
               </section>
@@ -678,7 +675,7 @@ export function App() {
             <>
               <PageTitle
                 eyebrow="YOUR COLLECTION"
-                title="A place for every perspective."
+                title="My scenes"
                 text="Keep different captures separate. Try new settings without overwriting a result."
               />
               <SceneLibrary
@@ -693,7 +690,7 @@ export function App() {
           ) : page === "hardware" ? (
             <>
               <PageTitle
-                eyebrow="BEFORE THE HEAVY LIFTING"
+                eyebrow="SYSTEM AND TOOLS"
                 title="Your reconstruction environment."
                 text="Check this computer once, then reuse its tools across your scenes."
               />
@@ -733,7 +730,7 @@ export function App() {
             <>
               <PageTitle
                 eyebrow="A PLACE TO RECOVER"
-                title="Deleted scenes, kept within reach."
+                title="Deleted scenes"
                 text="Restore a scene with its photos, settings, and saved reconstructions."
               />
               <TrashView
@@ -751,7 +748,7 @@ export function App() {
             <span>
               <Aperture size={15} /> photo to splat
             </span>
-            <span>Photographs in. Perspectives out.</span>
+            <span>Local Gaussian reconstruction</span>
           </footer>
         </main>
       </div>
@@ -1074,26 +1071,44 @@ function Readiness({
   verify,
   proceed,
   actionless,
+  compact,
 }: any) {
   const checking = ["checking", "verifying"].includes(d.state);
   const title =
     d.state === "ready"
-      ? "Your computer is ready."
+      ? "Your system is ready."
       : checking
-        ? "Getting to know your computer."
+        ? "Checking your system."
         : d.state === "verify"
-          ? "One last check."
+          ? "Verify GPU execution."
           : d.state === "attention" && d.tools_installed
             ? "Your setup needs attention."
             : d.state === "unsupported"
               ? "Training needs a supported GPU route."
-              : "Let’s get you set up.";
+              : "Set up reconstruction tools.";
+  const checks = d.checks.length
+    ? d.checks
+    : [
+        { id: "gpu", name: "NVIDIA graphics" },
+        { id: "platform", name: "Execution platform" },
+        { id: "storage", name: "Available storage" },
+      ];
+  const visibleChecks = compact
+    ? checks.filter(
+        (check: any) =>
+          ["gpu", "platform", "storage"].includes(check.id) ||
+          (check.state && check.state !== "ready"),
+      )
+    : checks;
   return (
-    <section className="readiness card">
+    <section className={cn("readiness card", compact && "readiness-compact")}>
       <div className="card-topline">
-        <span className="icon-box">
-          <Cpu size={21} />
-        </span>
+        <div className="card-identity">
+          <span className="icon-box">
+            <Cpu size={21} />
+          </span>
+          <span className="readiness-label">SYSTEM STATUS</span>
+        </div>
         <span
           className={cn("badge", d.verified ? "badge-green" : "badge-neutral")}
         >
@@ -1104,42 +1119,61 @@ function Readiness({
       <p className="muted">
         {d.verified
           ? `A Gaussian render and gradient check passed${d.verified_at ? ` on ${new Date(d.verified_at).toLocaleDateString()}` : ""}.`
-          : "We check your tools before asking your GPU to work."}
+          : "Check your environment before starting a reconstruction."}
       </p>
       <div className="check-list">
-        {(d.checks.length
-          ? d.checks
-          : [
-              { id: "gpu", name: "NVIDIA graphics" },
-              { id: "platform", name: "Execution platform" },
-              { id: "storage", name: "Available storage" },
-            ]
-        ).map((check: any) => (
-          <div className="check-row" key={check.id}>
-            <span>
-              {check.state === "ready" ? (
-                <CheckCircle2 className="green" size={17} />
-              ) : checking ? (
-                <Loader2 className="spin muted" size={17} />
-              ) : (
-                <CircleAlert className="amber" size={17} />
-              )}
-            </span>
-            <div>
-              <strong>{check.name}</strong>
-              {check.detail && (
-                <small title={check.detail}>
-                  {check.state === "ready"
-                    ? check.detail
-                    : check.id === "storage"
-                      ? check.detail
-                      : "Needs attention"}
-                </small>
-              )}
+        {visibleChecks.map((check: any) => {
+          const gpu =
+            check.id === "gpu" && check.state === "ready"
+              ? check.detail?.split(",")
+              : null;
+          const memory = gpu?.[1] ? Number.parseFloat(gpu[1]) / 1024 : NaN;
+          return (
+            <div className="check-row" key={check.id}>
+              <span>
+                {check.state === "ready" ? (
+                  <CheckCircle2 className="green" size={17} />
+                ) : checking ? (
+                  <Loader2 className="spin muted" size={17} />
+                ) : (
+                  <CircleAlert className="amber" size={17} />
+                )}
+              </span>
+              <div>
+                <strong>{check.name}</strong>
+                {check.detail && (
+                  <small title={check.detail}>
+                    {gpu ? (
+                      <>
+                        <span className="check-device">
+                          {gpu[0].trim().replace(/^NVIDIA /, "")}
+                        </span>
+                        <span className="check-meta">
+                          {Number.isFinite(memory)
+                            ? `${memory.toFixed(1)} GiB VRAM`
+                            : ""}
+                          {gpu[2] ? ` · driver ${gpu[2].trim()}` : ""}
+                        </span>
+                      </>
+                    ) : check.state === "ready" ? (
+                      check.detail
+                    ) : check.id === "storage" ? (
+                      check.detail
+                    ) : (
+                      "Needs attention"
+                    )}
+                  </small>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+      {compact && (
+        <a className="readiness-details" href="#/hardware">
+          View all system checks
+        </a>
+      )}
       {d.error && (
         <p className="inline-error">
           The execution check needs attention. Open setup for the details.
@@ -1436,9 +1470,9 @@ function SceneView({
         </section>
         <aside className="run-config card">
           <div className="eyebrow">MAKE A NEW RECONSTRUCTION</div>
-          <h3>Find your first perspective.</h3>
+          <h3>Run settings</h3>
           <p className="muted">
-            Start small. You can always make a longer run later.
+            Choose a training budget. Each attempt is saved as a separate run.
           </p>
           <div className="preset-grid">
             {[
@@ -1875,7 +1909,7 @@ function RunView({ id, state, act, back, acting }: any) {
         </section>
         <aside className="card results-card">
           <div className="eyebrow">YOUR SAVED RESULT</div>
-          <h3>A new way to see it.</h3>
+          <h3>Explore or export</h3>
           {run.completed.includes("train") ? (
             <>
               <p>
@@ -2074,8 +2108,8 @@ function Storage({ state, act, importing, acting }: any) {
   return (
     <>
       <PageTitle
-        eyebrow="ROOM FOR YOUR PERSPECTIVES"
-        title="A workspace that stays yours."
+        eyebrow="WORKSPACE FILES"
+        title="Workspace storage."
         text="Choose a local folder with room for imported photos, working copies, checkpoints, and exports."
       />
       <section className="card storage-card">
@@ -2269,9 +2303,9 @@ function Help() {
   return (
     <>
       <PageTitle
-        eyebrow="A PRACTICAL LITTLE FIELD GUIDE"
-        title="A new perspective, explained."
-        text="You bring the photos. The studio connects the reconstruction tools and keeps each attempt reproducible."
+        eyebrow="PIPELINE GUIDE"
+        title="How reconstruction works."
+        text="Follow the steps from a photo set to camera poses, trained Gaussians, and a saved scene."
       />
       <div className="help-grid">
         {[

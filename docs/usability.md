@@ -1,4 +1,4 @@
-# Everyday interaction checks
+# Interface behavior and test coverage
 
 ```text
 Workspace / Overview → My scenes → Scene → Run details
@@ -8,8 +8,8 @@ Workspace / Overview → My scenes → Scene → Run details
                                              Delete permanently
 ```
 
-These are explicit behaviors, not a claim that every possible device or input
-has been tested. Tests use isolated fixtures, never a person's real scenes.
+The table lists the main interface flows and how they were checked. Automated
+tests use temporary workspaces and generated photos.
 
 | Flow | Expected behavior | Verification |
 |---|---|---|

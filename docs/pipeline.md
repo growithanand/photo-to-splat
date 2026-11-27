@@ -6,8 +6,8 @@ Import → immutable run → prepare → features → matches → cameras
 Viewer ← export ← held-out renders ← Gaussian training ← conversion
 ```
 
-This guide maps practical implementation to code. It assumes familiarity with
-geometry but does not assume prior experience wiring reconstruction tools together.
+This guide follows a photo set through the code, from import to the saved model.
+Each section names the files and outputs involved in that step.
 
 ## Start the application
 
@@ -120,7 +120,7 @@ work starts. The browser polls state and does not own the job. Keep the applicat
 terminal alive; stopping it interrupts its worker. Workspaces have independent
 queues, so multiple app instances can still compete for one GPU.
 
-New submissions now follow a one-active-run policy. Admission checks and the run
+New submissions follow a one-active-run policy. Admission checks and the run
 reservation share the record lock; a separate compute lock spans training,
 viewer, verification and installer work. Existing legacy queue entries remain
 sequential. [Action coordination](concurrency.md) describes the exact policy.

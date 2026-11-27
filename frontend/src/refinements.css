@@ -1,4 +1,4 @@
-/* Keep task-critical labels readable at wide and narrow viewports. */
+/* These labels need to stay readable when the layout gets narrow. */
 .check-row strong,
 .field-label,
 .journey-step strong,

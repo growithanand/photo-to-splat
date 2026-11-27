@@ -56,7 +56,7 @@ export function SceneLibrary({
           <h2>
             Your scenes <span className="count-chip">{scenes.length}</span>
           </h2>
-          <p>Each capture has a home. Every attempt keeps its own history.</p>
+          <p>Keep captures separate and return to any saved run.</p>
         </div>
         <div className="button-row">
           <Button variant="ghost" size="small" onClick={showTrash}>
@@ -101,7 +101,7 @@ export function SceneLibrary({
             <Layers3 size={26} />
           </div>
           <div>
-            <h3>Your first scene belongs here.</h3>
+            <h3>No scenes yet</h3>
             <p>
               Create a scene to import photos, or restore an earlier scene from
               Trash.
@@ -199,6 +199,19 @@ export function SceneLibrary({
               </article>
             );
           })}
+          {!search && (
+            <button
+              className="scene-create-card"
+              onClick={create}
+              aria-label="Create a new scene"
+            >
+              <span className="icon-box">
+                <Plus size={23} />
+              </span>
+              <strong>New scene</strong>
+              <span>Import another capture</span>
+            </button>
+          )}
         </div>
       )}
     </section>

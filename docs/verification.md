@@ -1,89 +1,80 @@
-# Verification record
+# Verification
 
-This distinguishes software tests from actual reconstruction evidence. GitHub CI
-runs the backend checks on Windows and Linux, plus frontend tests and the build.
-The [initial public CI run](https://github.com/growithanand/photo-to-splat/actions/runs/45876808337)
-passed all three jobs on 26 November 2026. GPU execution evidence below comes
-from the tested system, independently of those CPU-only CI jobs.
+The application tests run in [GitHub Actions](https://github.com/growithanand/photo-to-splat/actions/workflows/ci.yml).
+GPU checks and reconstruction results were recorded separately on the system below.
 
 ## Automated checks
 
-Backend tests cover content deduplication, concurrent imports, orientation,
-preserving originals, immutable selections, input tampering, partial-stage
-recovery, API guards, runtime changes, folder browsing, orphan workers,
-native lock export, CLI worker ownership, scene rename/Trash/restore, active-work
-guards, deletion/queue concurrency, and tool help printed to stderr.
-All 53 tests passed locally, including simultaneous Start/Resume requests from
-independent app instances, idempotent viewer launch/stop, background-task guards,
-and reservation release after failure. Trash tests cover exact selection and
-workspace confirmation, preserving unrelated scenes and external files, invalid
-batches, linked folders on Windows, restore/deletion races, and retry after a
-partial filesystem failure. Setup tests cover persistent verification, environment
-changes, failed retests, damaged caches, fresh report requirements, saved review
-receipts, stale installation requests, targeted components, and custom environment
-protection. Stand-in processes are CPU-only.
-All 41 frontend tests passed. They cover navigation, browser Back, deep links,
-deletion/cancel/undo, rename validation, drafts, background imports, viewer controls,
-request retries, dialog errors, blocked concurrency controls, rapid clicks,
-stale-state recovery, permanent-deletion confirmation/cancellation, partial cleanup
-errors, selection snapshots, setup state transitions, requirements review,
-maintenance confirmation, storage guidance, and accessible primitives. TypeScript and the
-production frontend build passed.
-These tests do not claim CUDA support on CPU-only CI runners.
+| Check | Result |
+|---|---|
+| Backend tests | 53 passing; CI runs on Windows and Linux |
+| Frontend tests | 42 passing |
+| TypeScript and frontend build | Passing |
+| Python lint | Passing |
+| Wheel and source distribution | Built with the UI and runtime locks; local workspace files excluded |
 
-## Live checks
+The tests cover photo imports, duplicate detection, input hashes, run recovery,
+workspace changes, concurrent requests, viewer controls, Trash, and setup state.
+Browser checks covered desktop and narrow layouts, folder/file selection,
+navigation, and confirmation dialogs. The dark interface was checked at 390px
+and desktop widths, including setup maintenance fields, empty Trash, scene
+controls, and a saved run. Public interface captures use an empty workspace and
+the included synthetic demo.
 
-- Windows dashboard exercised at mobile and desktop breakpoints.
-- Scene creation and runtime settings tested through the UI.
-- Workspace folder browsing exercised through the UI. A later browser check
-  completed individual-photo and directory selection, accepted a valid photo,
-  and reported unsupported files from a mixed folder.
-- An isolated workspace exercised clickable breadcrumbs, browser Back, run-page
-  refresh, rename, recoverable deletion/restoration, and queued-run cancellation.
-  Photo exclusions stayed excluded after returning to a scene. Desktop and 390px
-  layouts were inspected; thumbnail overflow and cramped mobile navigation were
-  corrected. No real user scenes were modified for these checks.
-- Trash controls were inspected in a separate browser fixture: Empty Trash
-  opened a named-scene confirmation, the final action stayed disabled until
-  DELETE was typed, and Cancel kept the entry. The updated live workspace showed
-  Empty Trash and per-scene Delete permanently controls. Its real Trash entry
-  was left untouched; actual deletion was tested only with temporary fixtures.
-- Actual gsplat rasterization and differentiation passed on RTX 5090 Laptop.
-- Setup follow-up on 26 November passed a new real GPU render/gradient test with
-  the managed environment. Recheck and a full app restart reused the exact saved
-  test timestamp and fingerprint. An ordinary install request returned
-  `already_installed` without starting an installer. Desktop (1440px) and narrow
-  (390px) layouts, scenes navigation, browser Back, and repair cancellation were
-  inspected. No tool reinstallation was performed for these checks.
-- A 27-photo private local capture completed all nine stages in a 1,200-step,
-  800px integration run: 27/27 cameras registered, 3,983 sparse points, and a
-  6,366,016-byte Gaussian PLY export. The split was 22 train / 2 validation / 3 test.
-  Held-out metrics were PSNR 19.29, SSIM 0.720, and LPIPS 0.425. This short run
-  verifies integration; it is not the final-quality preset.
-- Recovery was exercised after correcting stderr-only COLMAP help parsing and
-  toolkit selection during a concurrent managed setup. These were defects found
-  during integration, not successful first-attempt results.
-- Clean managed setup completed separately from the compatible older environment
-  used for the complete reconstruction. Its first attempt exposed missing host
-  compiler exports during a dependency build; those exports were corrected.
-  The resulting locked uv environment passed actual Gaussian rendering and
-  backpropagation with torch 2.7.1+cu128, CUDA 12.8, gsplat 1.4.0, and GPU
-  compute capability 12.0. Native explicit locks were also accepted by micromamba.
-- The fresh managed runtime loaded the integration checkpoint in the interactive
-  viewer. Its rendered resolution and Max res control both showed 1600px.
-- Wheel and source distributions built successfully, including the bundled UI,
-  demo and GPU locks, with no private workspace or temporary files included.
+## Tested GPU environment
 
-## Limits
+| Component | Configuration |
+|---|---|
+| Host | Windows with WSL2 Ubuntu 26.04 |
+| GPU | NVIDIA GeForce RTX 5090 Laptop GPU, 24 GB |
+| Training Python | 3.11.18 |
+| PyTorch | 2.7.1+cu128 |
+| CUDA toolkit | 12.8 |
+| Nerfstudio / gsplat | 1.1.5 / 1.4.0 |
+| COLMAP | 3.13.0, CUDA 12.9 build |
 
-One tested system does not establish minimum VRAM, support for every distro, or
-unlimited collection size. Updating native tools/torch/gsplat requires retesting
-camera conversion, rendering, checkpoint loading, and viewer defaults.
-Follow-up use on 26 November exposed a CUDA launch error in a viewer render thread.
-Its root cause remains unresolved. The initial GPU check and successful viewer
-load do not establish that every camera movement or long viewer session is reliable.
-Restricted test sandboxes can block even the local socket pair needed by async
-test clients; normal development/CI needs ordinary loopback access.
+The managed environment rendered a Gaussian image and backpropagated through it.
+It also loaded a saved reconstruction in the interactive viewer at the 1600px
+preview setting. Rechecking tools and restarting the app preserved the saved
+GPU test when the environment fingerprint matched. A repeated install request
+returned `already_installed` without launching the installer.
 
-The public demo is prerecorded trained synthetic output. It does not show a
-user's live reconstruction or promise the same quality for every collection.
+## Reconstruction check
+
+A private 27-photo capture completed all nine pipeline stages using an existing
+compatible environment. The fresh managed installation was checked separately
+with the GPU test and checkpoint loading described above.
+
+| Measurement | Result |
+|---|---|
+| Registered cameras | 27 / 27 |
+| Sparse points | 3,983 |
+| Training budget | 1,200 steps at an 800px image edge |
+| Train / validation / test split | 22 / 2 / 3 photos |
+| Gaussian PLY export | 6.1 MiB |
+| Held-out PSNR | 19.29 |
+| Held-out SSIM | 0.720 |
+| Held-out LPIPS | 0.425 |
+
+This was a short integration run. The app's Quick preview preset uses 7,000
+steps. Metrics cover the whole image, including the background. COLMAP uses the
+full capture for camera estimation; held-out images are excluded from appearance
+training, not from the camera solution.
+
+Recovery was checked after failed camera-tool detection and an interrupted setup.
+Those checks led to fixes for COLMAP help printed to stderr, compiler exports
+during package builds, and selection of an incomplete CUDA toolkit.
+
+## Known limits
+
+- The complete workflow has been exercised on one GPU system. Minimum VRAM and
+  compatibility with other GPU models or Linux distributions have not been established.
+- A CUDA launch error occurred in a viewer render thread during follow-up use on
+  26 November 2026. Its cause is unresolved. The small GPU test can pass while a
+  longer viewer session still fails; keep the viewer log when reporting this.
+- CI runs application tests without CUDA. It does not validate GPU training or
+  the driver/toolkit combination on another system.
+- Changing torch, gsplat, Nerfstudio, or native tools requires checking camera
+  conversion, rendering, checkpoint loading, and viewer defaults again.
+- Reconstruction quality depends on coverage, reflections, blur, and scene
+  consistency. The prerecorded public demo uses a synthetic scene.
