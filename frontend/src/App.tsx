@@ -113,6 +113,9 @@ export function App() {
   const missing =
     page === "missing" || (!!sceneId && !scene) || (!!runId && !currentRun);
   const activity = getActivity(state);
+  const backgroundActive =
+    !!state?.background &&
+    ["starting", "running", "recovery"].includes(state.background.state);
   const busy = !!activity || pending > 0;
   const purgeBlocked = importing
     ? "Wait for photo import to finish before emptying Trash."
@@ -433,7 +436,14 @@ export function App() {
           </div>
         </header>
         <main id="main-content" ref={main} tabIndex={-1}>
-          <ActivityNotice activity={activity} />
+          <ActivityNotice
+            activity={
+              backgroundActive ||
+              (state?.record_issues?.length && activity?.kind === "recovery")
+                ? null
+                : activity
+            }
+          />
           {connectionError && (
             <div role="alert" className="alert alert-error">
               <CircleAlert size={19} />
@@ -450,6 +460,54 @@ export function App() {
               <button aria-label="Dismiss error" onClick={() => setError("")}>
                 <X size={17} />
               </button>
+            </div>
+          )}
+          {!!state?.record_issues?.length && (
+            <div role="alert" className="activity-notice record-recovery">
+              <div>
+                <strong>Some workspace records need recovery.</strong>
+                <p>
+                  Your other scenes are available. The affected files were left
+                  in place.
+                </p>
+                <details>
+                  <summary>View affected records and recovery steps</summary>
+                  <p>
+                    Close the app, keep a copy of the affected record, then
+                    restore a valid backup of that record. Reopen the app to
+                    check it again.
+                  </p>
+                  <ul>
+                    {state.record_issues.map((issue) => (
+                      <li key={issue.path}>{issue.message}</li>
+                    ))}
+                  </ul>
+                </details>
+              </div>
+            </div>
+          )}
+          {state?.background && backgroundActive && (
+            <div role="status" className="activity-notice">
+              <span>
+                {state.background.error ||
+                  "A supervised setup or GPU check is using this workspace."}
+              </span>
+              {state.background.id && (
+                <Button
+                  size="small"
+                  variant="outline"
+                  disabled={pending > 0 || state.background.stop_requested}
+                  onClick={() =>
+                    act(() =>
+                      api(`/background/${state.background?.id}/stop`, {}),
+                    )
+                  }
+                >
+                  {state.background.stop_requested
+                    ? "Stopping…"
+                    : "Stop background task"}
+                </Button>
+              )}
             </div>
           )}
           {notice && (

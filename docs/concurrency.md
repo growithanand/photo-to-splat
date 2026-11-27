@@ -31,6 +31,19 @@ same workspace. Sync API actions also share a control lock and consistent lock
 order. GPU work, viewers, verification and installation retain `.compute.lock`
 until they exit. Exception paths release the reservation.
 
+Setup and verification use a supervisor process, with a durable reservation in
+`.background-task.json` during the lock handoff. The supervisor owns the external
+tool, compute lock, and final result. A server crash does not free the device for
+another managed task. On restart the app discovers that task; its stop control
+uses the saved process identity, including creation time. Normal shutdown requests
+a stop and waits; slow cleanup stays supervised and reserved. Completed task
+results are retained under `.background-results/` so a late observer cannot read
+the result of a newer task by mistake.
+
+An unreadable run record blocks GPU admission because its previous ownership is
+unknown. Healthy scenes remain visible, and the recovery banner identifies the
+record to restore. Records and source photos are never silently discarded.
+
 The UI derives active work from run records as well as the server's activity
 response. It refreshes on focus and after rejected requests, displays a link to
 the active run, and uses immediate click guards while Start/Resume is pending.

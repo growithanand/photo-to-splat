@@ -1,4 +1,11 @@
 /* One palette for the workspace, dialogs, and reconstruction controls. */
+.record-recovery > div {
+  min-width: 0;
+}
+.record-recovery li {
+  overflow-wrap: anywhere;
+  margin-top: 0.75rem;
+}
 :root {
   color-scheme: dark;
   --canvas: #0c0f15;

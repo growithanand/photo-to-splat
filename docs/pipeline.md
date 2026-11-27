@@ -50,6 +50,9 @@ the resized pixel focal length; otherwise a conventional image-size prior is
 used and refined. Mixed or missing metadata may need an explicit camera mode.
 
 Exhaustive matching compares all pairs and verifies geometric consistency.
+New sequential runs naturally sort the original capture filenames before assigning
+working frame names, including photos imported in separate batches. Ties use the
+content hash. Existing run snapshots keep their saved order.
 Sequential matching relies on ordered filenames and overlapping neighboring
 captures. It is not a general substitute for image retrieval on shuffled large
 albums. The app guards against accidental huge exhaustive jobs.

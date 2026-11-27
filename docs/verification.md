@@ -7,14 +7,22 @@ GPU checks and reconstruction results were recorded separately on the system bel
 
 | Check | Result |
 |---|---|
-| Backend tests | 53 passing; CI runs on Windows and Linux |
-| Frontend tests | 42 passing |
+| Backend tests | 69 passing on Linux/WSL; 67 passing and 2 Linux-only repair tests skipped on Windows |
+| Frontend tests | 44 passing |
 | TypeScript and frontend build | Passing |
 | Python lint | Passing |
 | Wheel and source distribution | Built with the UI and runtime locks; local workspace files excluded |
+| Dependency advisory scans | No known findings in the lightweight app environment or frontend lockfile at the time of the check |
 
 The tests cover photo imports, duplicate detection, input hashes, run recovery,
 workspace changes, concurrent requests, viewer controls, Trash, and setup state.
+Process tests use real CPU children to exercise shutdown, supervisor failure,
+restart discovery, the reservation handoff, timeout cleanup, and durable GPU test
+results. Fake native tools exercise package reconciliation and failed post-repair
+probes without installing CUDA. Recovery tests cover damaged records, natural
+capture ordering, and palette/RGBA transparency. Wheel smoke tests run from
+outside the checkout. The advisory checks above do not cover the optional GPU
+environment or establish that no undisclosed vulnerabilities exist.
 Browser checks covered desktop and narrow layouts, folder/file selection,
 navigation, and confirmation dialogs. The dark interface was checked at 390px
 and desktop widths, including setup maintenance fields, empty Trash, scene

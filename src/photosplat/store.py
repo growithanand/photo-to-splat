@@ -25,6 +25,10 @@ class RunConflictError(ValueError):
         self.run = run
 
 
+class RecordError(ValueError):
+    """Keep an unreadable record in place so it can be recovered from a backup."""
+
+
 def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -72,7 +76,7 @@ class Store:
         return self.root / kind / valid_id(item_id)
 
     def get(self, kind: str, item_id: str, *, include_deleted=False) -> dict:
-        record = read(self.path(kind, item_id) / "record.json")
+        record = self.load_record(kind, self.path(kind, item_id) / "record.json")
         if record is None:
             raise FileNotFoundError(f"This {kind[:-1]} does not exist in the selected workspace.")
         if not include_deleted:
@@ -97,13 +101,76 @@ class Store:
     def list(self, kind: str, *, include_deleted=False) -> list[dict]:
         if kind not in ("scenes", "runs"):
             raise ValueError("Unknown record type.")
-        records = [read(p) for p in (self.root / kind).glob("*/record.json")]
+        records, _ = self.scan(kind)
         if not include_deleted:
             records = [r for r in records if not r.get("deleted_at")]
             if kind == "runs":
                 scenes = {s["id"] for s in self.list("scenes")}
                 records = [r for r in records if r["scene_id"] in scenes]
         return sorted(records, key=lambda r: r["created"], reverse=True)
+
+    def load_record(self, kind: str, path: Path):
+        try:
+            if not path.exists():
+                return None
+            record = read(path)
+            if not isinstance(record, dict) or record.get("id") != valid_id(path.parent.name):
+                raise ValueError("Record identity does not match its folder.")
+            datetime.fromisoformat(record["created"])
+            name = record["name" if kind == "scenes" else "scene_name"]
+            if not isinstance(name, str) or not name.strip() or not isinstance(record["images"], list):
+                raise ValueError("Invalid scene name or photo inventory.")
+            for image in record["images"]:
+                valid_id(image["id"])
+                if any(not isinstance(image[key], str) for key in ("name", "filename", "sha256")):
+                    raise ValueError("Invalid photo metadata.")
+                if any(
+                    not isinstance(image[key], int) or image[key] <= 0 for key in ("width", "height", "bytes")
+                ):
+                    raise ValueError("Invalid photo dimensions or size.")
+                if (
+                    image["filename"] in {"", ".", ".."}
+                    or "/" in image["filename"]
+                    or "\\" in image["filename"]
+                ):
+                    raise ValueError("Photo filenames must stay inside the scene.")
+            if kind == "runs":
+                from .models import RunOptions
+
+                valid_id(record["scene_id"])
+                RunOptions(**record["settings"])
+                if record["status"] not in {
+                    "queued",
+                    "running",
+                    "complete",
+                    "failed",
+                    "interrupted",
+                    "cancelled",
+                }:
+                    raise ValueError("Unknown run status.")
+                if not isinstance(record["stage"], str) or not isinstance(record["completed"], list):
+                    raise ValueError("Invalid run stages.")
+                if any(not isinstance(stage, str) for stage in record["completed"]):
+                    raise ValueError("Invalid completed stage.")
+            return record
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            raise RecordError(
+                f"Cannot read {path}. Restore this record from a backup; files were left in place. {exc}"
+            ) from exc
+
+    def scan(self, kind: str):
+        records, issues = [], []
+        for path in (self.root / kind).glob("*/record.json"):
+            try:
+                record = self.load_record(kind, path)
+                if record is not None:
+                    records.append(record)
+            except RecordError as exc:
+                issues.append({"kind": kind, "path": str(path), "message": str(exc)})
+        return records, issues
+
+    def issues(self, kind: str | None = None):
+        return [issue for group in ([kind] if kind else ["scenes", "runs"]) for issue in self.scan(group)[1]]
 
     def rename_scene(self, scene_id: str, name: str) -> dict:
         name = name.strip()
@@ -161,6 +228,10 @@ class Store:
 
     def purge_scenes(self, scene_ids: list[str], *, allow_compute=False) -> dict:
         with self.lock:
+            if self.issues("runs"):
+                raise RunConflictError(
+                    "Recover the unreadable run records before permanently deleting scenes."
+                )
             if not scene_ids or len(set(scene_ids)) != len(scene_ids):
                 raise ValueError("Choose one or more distinct scenes from Trash.")
             if self.compute_busy() and not allow_compute:
@@ -246,7 +317,7 @@ class Store:
             return self._create_run(scene_id, settings)
 
     def active_run(self) -> dict | None:
-        runs = self.list("runs")
+        runs = self.list("runs", include_deleted=True)
         return next((r for r in runs if r["status"] == "running"), None) or next(
             (r for r in runs if r["status"] == "queued"), None
         )
@@ -257,13 +328,22 @@ class Store:
         return FileLock(str(self.root / ".compute.lock"), timeout=0, thread_local=False)
 
     def compute_busy(self) -> bool:
+        if self.background_task():
+            return True
         try:
             with self.compute_lease():
                 return False
         except Timeout:
             return True
 
+    def background_task(self):
+        from .background import active_task
+
+        return active_task(self)
+
     def require_idle(self) -> None:
+        if self.issues("runs"):
+            raise RunConflictError("Recover the unreadable run records before starting more work.")
         run = self.active_run()
         if run:
             raise RunConflictError(
@@ -312,6 +392,13 @@ class Store:
         image_ids = options.pop("image_ids")
         selected = set([i["id"] for i in scene["images"]] if image_ids is None else image_ids)
         images = [i for i in scene["images"] if i["id"] in selected]
+        if options["matching"] == "sequential":
+            # Original capture names survive imports made in separate batches.
+            def capture_order(image):
+                parts = re.split(r"(\d+)", image["name"].casefold())
+                return tuple((1, int(p)) if p.isdigit() else (0, p) for p in parts), image["sha256"]
+
+            images.sort(key=capture_order)
         if len(selected) != len(images):
             raise ValueError("The selection contains photos that are not in this scene.")
         if len(images) < 12:
@@ -334,6 +421,7 @@ class Store:
             images=images,
             error=None,
             cancel_requested=False,
+            image_order="capture-filename-v1" if options["matching"] == "sequential" else "import-v1",
         )
         # This snapshot belongs to the run. Future imports do not alter it.
         self.save("runs", run)

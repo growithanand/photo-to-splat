@@ -65,6 +65,14 @@ export type Run = {
   settings: any;
 };
 export type State = {
+  record_issues?: { kind: string; path: string; message: string }[];
+  background?: {
+    id?: string;
+    kind: string;
+    state: string;
+    error?: string;
+    stop_requested?: boolean;
+  } | null;
   activity?: import("./activity").Activity | null;
   scenes: Scene[];
   runs: Run[];

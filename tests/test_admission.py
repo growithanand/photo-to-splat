@@ -163,7 +163,9 @@ def test_background_tasks_block_conflicts_and_release_on_failure(tmp_path, monke
         assert finish.wait(10)
         return SimpleNamespace(returncode=1)
 
-    monkeypatch.setattr("photosplat.app.subprocess.run", hold)
+    monkeypatch.setattr(
+        "photosplat.background.Tasks.run", lambda self, kind, command, log, **kwargs: hold(command)
+    )
     app = create_app(tmp_path, worker=False)
     runtime = SimpleNamespace(
         readiness=lambda root: {

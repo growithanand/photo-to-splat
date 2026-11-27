@@ -296,6 +296,14 @@ sequential matching with capture-ordered filenames. This release does not offer
 vocabulary-tree retrieval, distributed matching, or unlimited-scale processing.
 Mixed cameras/lenses can require explicit per-image calibration or further grouping.
 
+New sequential runs sort those filenames naturally across import batches (for
+example, `photo_2` before `photo_10`); completed runs keep their saved order.
+
+Setup and GPU checks retain a supervised reservation across server restarts.
+Reopening an active workspace shows **Stop background task**. If a scene record
+is damaged, the app lists it for recovery and keeps healthy scenes available;
+an unreadable run record blocks further GPU work until recovered.
+
 The [pipeline walkthrough](docs/pipeline.md) maps each setting to actual code and
 artifacts. [Troubleshooting](docs/troubleshooting.md) covers failed and poor runs.
 

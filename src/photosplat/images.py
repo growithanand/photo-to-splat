@@ -93,7 +93,7 @@ def prepare(store: Store, run: dict) -> None:
             )
         with Image.open(source) as raw:
             image = ImageOps.exif_transpose(raw)
-            transparent = "A" in image.getbands()
+            transparent = "A" in image.getbands() or "transparency" in image.info
             image = image.convert("RGBA" if transparent else "RGB")
             image.thumbnail((run["settings"]["max_size"],) * 2, Image.Resampling.LANCZOS)
             name = f"frame_{index:06d}.{'png' if transparent else 'jpg'}"

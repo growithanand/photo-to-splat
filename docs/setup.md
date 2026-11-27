@@ -68,9 +68,17 @@ Normal installation rechecks the current environment, returns without starting a
 process when tools are already installed, and passes only missing component IDs
 to the installer. **Repair managed tools** is an explicit maintenance action with
 a separate confirmation. It reconciles all components, keeps existing native
-prefixes, and synchronizes the pinned Python packages. It does not delete native
-prefixes or guarantee repair of every damaged native file; inspect logs if checks
-still fail. Neither action changes source photos or scenes.
+prefixes, reinstalls the native packages from their explicit locks, and synchronizes
+the pinned Python packages. Compiler, COLMAP, and training imports are probed before
+setup reports success. Inspect the log if a probe still fails. Neither action
+changes source photos or scenes.
+
+Setup and GPU verification run under a separate supervisor. Closing the app
+requests a safe stop for tasks that app started. If the server crashes, the
+supervisor retains the compute lock and saves its result. Reopening the same
+workspace shows the active task and **Stop background task**. A lost supervisor
+requires recovery before new GPU work; a recycled process ID is never sufficient
+evidence for automatic termination.
 
 ## Actual execution check
 

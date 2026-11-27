@@ -33,3 +33,15 @@ threshold deletes photographs: users review and exclude clear mistakes.
 Logs live in `runs/<id>/logs/`. Also inspect camera-report.json, commands.json,
 gpu-verification.json, and the training config. Manifests/logs can contain local
 paths and photo names; review them before sharing publicly.
+
+If the app reports an unreadable scene or run record, close it and keep a copy of
+the affected `record.json`. Restore that record from a valid backup, then reopen
+the app. Healthy scenes stay visible; unreadable run records block new GPU work
+until their ownership can be established. Do not delete the affected scene folder
+as a way to clear the warning.
+
+After a server crash, setup or verification may still be running under its
+supervisor. Reopen the same workspace and use **Stop background task** if needed.
+Do not remove `.background-task.json` or lock files to bypass a live task. If the
+supervisor and launch identity cannot be recovered, inspect the process list and
+logs before recovering that record; automatic cleanup refuses ambiguous owners.

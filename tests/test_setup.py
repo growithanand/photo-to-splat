@@ -14,6 +14,32 @@ from photosplat.runtime import Runtime
 from photosplat.store import write
 
 
+def stub_task(monkeypatch, handler):
+    def run(self, kind, command, log, **kwargs):
+        report_path = self.home / "diagnostics/gpu-verification.json"
+        if kind == "verification":
+            report_path.unlink(missing_ok=True)
+        result = handler(command, **kwargs)
+        if kind == "verification":
+            from photosplat.store import read
+
+            report = read(report_path) if result.returncode == 0 else None
+            passed = bool(report and report.get("passed"))
+            write(
+                self.home / "diagnostics/verification.json",
+                {
+                    "fingerprint": kwargs["fingerprint"],
+                    "passed": passed,
+                    "report": report,
+                    "checked": "2026-11-27T12:00:00Z",
+                    "error": None if passed else "GPU fixture did not produce a passing report.",
+                },
+            )
+        return result
+
+    monkeypatch.setattr("photosplat.background.Tasks.run", run)
+
+
 def detected(*, installed=True, fingerprint="environment-a", storage=True):
     return {
         "state": "verify" if installed and storage else "setup" if not installed else "attention",
@@ -88,7 +114,7 @@ def test_low_disk_space_does_not_request_reinstallation(tmp_path, monkeypatch):
 def test_failed_retest_replaces_success_and_survives_restart(tmp_path, monkeypatch):
     cache(tmp_path)
     monkeypatch.setattr(Runtime, "readiness", lambda self, root: detected())
-    monkeypatch.setattr("photosplat.app.subprocess.run", lambda *a, **k: SimpleNamespace(returncode=1))
+    stub_task(monkeypatch, lambda *a, **k: SimpleNamespace(returncode=1))
     result = check(Services(tmp_path, worker=False), verify=True)
     assert not result["verified"] and result["verification_error"]
     assert not check(Services(tmp_path, worker=False))["verified"]
@@ -97,14 +123,14 @@ def test_failed_retest_replaces_success_and_survives_restart(tmp_path, monkeypat
 def test_success_requires_a_new_passing_gpu_report(tmp_path, monkeypatch):
     monkeypatch.setattr(Runtime, "readiness", lambda self, root: detected())
     write(tmp_path / "diagnostics/gpu-verification.json", {"passed": True})
-    monkeypatch.setattr("photosplat.app.subprocess.run", lambda *a, **k: SimpleNamespace(returncode=0))
+    stub_task(monkeypatch, lambda *a, **k: SimpleNamespace(returncode=0))
     assert not check(Services(tmp_path, worker=False), verify=True)["verified"]
 
     def render(*args, **kwargs):
         write(tmp_path / "diagnostics/gpu-verification.json", {"passed": True, "gpu": "test fixture"})
         return SimpleNamespace(returncode=0)
 
-    monkeypatch.setattr("photosplat.app.subprocess.run", render)
+    stub_task(monkeypatch, render)
     result = check(Services(tmp_path, worker=False), verify=True)
     assert result["verified"] and result["verified_at"]
     assert check(Services(tmp_path, worker=False))["verified"]
@@ -117,7 +143,7 @@ def test_gpu_timeout_preserves_installed_tools_and_failed_test_on_restart(tmp_pa
     def timeout(*args, **kwargs):
         raise subprocess.TimeoutExpired("GPU fixture", 900)
 
-    monkeypatch.setattr("photosplat.app.subprocess.run", timeout)
+    stub_task(monkeypatch, timeout)
     result = check(Services(tmp_path, worker=False), verify=True)
     assert result["tools_installed"] and not result["verified"]
     assert "timed out" in result["verification_error"]
@@ -139,7 +165,7 @@ def test_stale_install_request_does_not_launch_installer(tmp_path, monkeypatch):
     def unexpected(*a, **k):
         pytest.fail("A healthy environment must not start installation")
 
-    monkeypatch.setattr("photosplat.app.subprocess.run", unexpected)
+    stub_task(monkeypatch, unexpected)
     with TestClient(create_app(tmp_path, worker=False)) as client:
         assert client.post("/api/setup").json()["state"] == "already_installed"
         assert client.post("/api/setup").json()["state"] == "already_installed"
@@ -172,7 +198,7 @@ def test_missing_component_install_and_explicit_repair_keep_admission_guards(tmp
         assert release.wait(5)
         return SimpleNamespace(returncode=1)
 
-    monkeypatch.setattr("photosplat.app.subprocess.run", install)
+    stub_task(monkeypatch, install)
     app = create_app(tmp_path, worker=False)
     with TestClient(app) as client:
         profile = client.get("/api/state").json()["setup_profile"]

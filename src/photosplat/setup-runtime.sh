@@ -12,6 +12,7 @@ if [[ "$(printf '%s\n' '2.39' "$glibc" | sort -V | head -1)" != '2.39' ]]; then
 fi
 dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 root="${PHOTOSPLAT_RUNTIME_ROOT:-$HOME/.local/share/photo-to-splat}"
+if [[ "${1:-}" == --repair ]]; then shift; fi
 # The dashboard supplies only missing components. Direct terminal setup and an
 # explicit maintenance repair reconcile the whole managed profile.
 components=" ${*:-compiler colmap training} "
@@ -40,20 +41,23 @@ with tarfile.open(root / 'micromamba.tar.bz2') as archive:
 PY
 fi
 export MAMBA_ROOT_PREFIX="$root/mamba"
-if needs compiler && [[ ! -x "$root/native/bin/nvcc" ]]; then
-  if [[ -f "$dir/gpu/native-linux-64.lock" ]]; then
-    "$root/bin/micromamba" create -y -p "$root/native" --file "$dir/gpu/native-linux-64.lock"
+install_native() {
+  local prefix="$1" lock="$2"
+  [[ -f "$lock" ]] || { echo "Missing pinned native lock: $lock" >&2; exit 2; }
+  if [[ -d "$prefix/conda-meta" ]]; then
+    # A binary can exist while a shared library or package is damaged.
+    "$root/bin/micromamba" install -y -p "$prefix" --file "$lock" --force-reinstall
   else
-    "$root/bin/micromamba" create -y -p "$root/native" --override-channels -c conda-forge -c nvidia \
-      'cuda-toolkit=12.8' 'gxx_linux-64=13' libusb
+    "$root/bin/micromamba" create -y -p "$prefix" --file "$lock"
   fi
+}
+if needs compiler; then
+  install_native "$root/native" "$dir/gpu/native-linux-64.lock"
+  "$root/native/bin/nvcc" --version
 fi
-if needs colmap && [[ ! -x "$root/sfm/bin/colmap" ]]; then
-  if [[ -f "$dir/gpu/sfm-linux-64.lock" ]]; then
-    "$root/bin/micromamba" create -y -p "$root/sfm" --file "$dir/gpu/sfm-linux-64.lock"
-  else
-    "$root/bin/micromamba" create -y -p "$root/sfm" --override-channels -c conda-forge 'colmap=3.13.0=cuda_129*'
-  fi
+if needs colmap; then
+  install_native "$root/sfm" "$dir/gpu/sfm-linux-64.lock"
+  LD_LIBRARY_PATH="$root/sfm/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" "$root/sfm/bin/colmap" -h
 fi
 # A few Python dependencies contain small C/C++ extensions. Use the isolated
 # compiler during uv's build step as well as during gsplat's first GPU execution.
@@ -65,6 +69,7 @@ export LIBRARY_PATH="$root/native/targets/x86_64-linux/lib:$root/native/lib${LIB
 export LD_LIBRARY_PATH="$root/native/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 if needs training; then
   UV_PROJECT_ENVIRONMENT="$root/train" uv sync --project "$dir/gpu" --python 3.11.18 --locked --no-dev
+  bash "$dir/runtime.sh" train "$root/train" python -c 'import torch, nerfstudio, gsplat'
 fi
 [[ ! -d "$root/native/conda-meta" ]] || python3 "$dir/native_lock.py" "$root/native" "$root/native-explicit.txt"
 [[ ! -d "$root/sfm/conda-meta" ]] || python3 "$dir/native_lock.py" "$root/sfm" "$root/sfm-explicit.txt"

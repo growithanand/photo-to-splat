@@ -14,6 +14,28 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff check src/photosplat tests scripts
       - run: uv run pytest -q
+      - name: Build and inspect releases
+        run: |
+          uv build --out-dir .verification/ci-dist
+          uv run python scripts/check_package.py .verification/ci-dist
+      - name: Test installed wheel outside checkout
+        shell: pwsh
+        run: |
+          $wheel = (Get-ChildItem .verification/ci-dist/*.whl).FullName
+          $smoke = (Resolve-Path scripts/smoke_wheel.py).Path
+          $envPath = Join-Path $env:RUNNER_TEMP "photosplat-wheel-env"
+          uv venv $envPath --python 3.11
+          $python = if ($IsWindows) { Join-Path $envPath "Scripts/python.exe" } else { Join-Path $envPath "bin/python" }
+          uv pip install --python $python $wheel httpx
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Set-Location $env:RUNNER_TEMP
+          & $python $smoke
+      - name: Audit app dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          uv export --locked --no-dev --no-emit-project --no-hashes -o "$RUNNER_TEMP/photosplat-requirements.txt"
+          uv tool run --from pip-audit==2.9.0 pip-audit --disable-pip --no-deps -r "$RUNNER_TEMP/photosplat-requirements.txt"
   frontend:
     runs-on: ubuntu-latest
     defaults:
@@ -30,3 +52,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: pnpm run build
+      - name: Verify committed frontend bundle
+        run: |
+          if [ -n "$(git status --porcelain -- ../src/photosplat/web)" ]; then
+            echo "Rebuild and commit src/photosplat/web with the frontend changes."
+            git status --short -- ../src/photosplat/web
+            exit 1
+          fi
+      - run: pnpm audit

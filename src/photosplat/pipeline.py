@@ -316,14 +316,24 @@ class Queue:
                                 error="The application stopped. Review logs and resume from the saved stages.",
                             )
                     while not self.stop_event.is_set():
+                        if self.store.background_task() or self.store.issues("runs"):
+                            self.stop_event.wait(0.5)
+                            continue
                         pending = [r for r in reversed(self.store.list("runs")) if r["status"] == "queued"]
                         if not pending:
                             self.stop_event.wait(0.5)
                             continue
                         run = pending[0]
                         try:
-                            with self.store.compute_lease():
+                            with self.store.lock:
+                                if self.store.background_task() or self.store.issues("runs"):
+                                    continue
+                                lease = self.store.compute_lease()
+                                lease.acquire()
+                            try:
                                 Pipeline(self.store, self.runtime_getter(), self.stop_event).run(run["id"])
+                            finally:
+                                lease.release()
                         except Timeout:
                             # A legacy queued job can meet a foreground CLI viewer.
                             # Keep it queued; never overlap the GPU work or fail it.

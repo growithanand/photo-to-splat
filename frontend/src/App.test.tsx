@@ -95,6 +95,10 @@ beforeEach(() => {
       return data.setup;
     }
     if (path === "/setup/log") return { text: "Temporary installation log" };
+    if (path.startsWith("/background/") && path.endsWith("/stop")) {
+      data.background.stop_requested = true;
+      return { stopping: true };
+    }
     if (path.startsWith("/diagnostics")) return { started: true };
     if (path.endsWith("/restore")) {
       const scene = data.trash.shift();
@@ -780,4 +784,48 @@ it("keeps missing tools visible in the compact system summary and links to all c
   expect(screen.queryByText("Camera reconstruction")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("link", { name: "View all system checks" }));
   expect(await screen.findByText("Camera reconstruction")).toBeVisible();
+});
+
+it("shows damaged records while keeping healthy scenes usable", async () => {
+  data.record_issues = [
+    {
+      kind: "scenes",
+      path: "workspace/scenes/bad/record.json",
+      message:
+        "Cannot read workspace/scenes/bad/record.json. Restore this record from a backup; files were left in place.",
+    },
+  ];
+  render(<App />);
+  expect(
+    await screen.findByText("Some workspace records need recovery."),
+  ).toBeVisible();
+  expect(screen.getByRole("link", { name: "Open Vase" })).toBeVisible();
+  expect(
+    screen.getByText(/Cannot read workspace\/scenes\/bad/),
+  ).toBeInTheDocument();
+});
+
+it("recognizes a recovered background task and lets the user stop it", async () => {
+  const taskId = "d".repeat(32);
+  data.background = {
+    id: taskId,
+    kind: "setup",
+    state: "running",
+    stop_requested: false,
+  };
+  render(<App />);
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Stop background task" }),
+  );
+  expect(
+    screen.getAllByText(
+      "A supervised setup or GPU check is using this workspace.",
+    ),
+  ).toHaveLength(1);
+  await waitFor(() =>
+    expect(mockApi).toHaveBeenCalledWith(`/background/${taskId}/stop`, {}),
+  );
+  expect(
+    await screen.findByRole("button", { name: "Stopping…" }),
+  ).toBeDisabled();
 });

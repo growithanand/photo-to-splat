@@ -9,6 +9,24 @@ export type Activity = {
 
 export function getActivity(state: State | null | undefined): Activity | null {
   if (!state) return null;
+  if (
+    state.background &&
+    ["starting", "running", "recovery"].includes(state.background.state)
+  )
+    return {
+      kind:
+        state.background.state === "recovery"
+          ? "recovery"
+          : state.background.kind,
+      message:
+        state.background.error ||
+        "A supervised setup or GPU check is using this workspace.",
+    };
+  if (state.record_issues?.some((issue) => issue.kind === "runs"))
+    return {
+      kind: "recovery",
+      message: "Recover unreadable run records before starting more GPU work.",
+    };
   // Derive run admission from the latest records too. This keeps the UI safe
   // while an older server is still finishing work during a frontend upgrade.
   const run =

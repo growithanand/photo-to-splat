@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from .background import Tasks, task_path
 from .images import MAX_BYTES, estimate, import_image
 from .models import RunOptions, RuntimeOptions, SceneRequest
 from .pipeline import LABELS, STAGES, Queue, tail, terminate
@@ -63,6 +64,36 @@ class Services:
         self.viewer_leases = {}
         self.importing = {}
         self.setup_job = {"state": "idle"}
+        self.tasks = Tasks(self.store, self.home)
+        self.background_seen = None
+
+    def refresh_background(self):
+        task = self.store.background_task() or read(task_path(self.store), {})
+        if not task:
+            return None
+        state = task.get("state")
+        if task.get("kind") == "setup":
+            self.setup_job = {
+                "started": task.get("started"),
+                "error": task.get("error"),
+                "state": "running"
+                if state in {"starting", "running"}
+                else "failed"
+                if state in {"recovery", "interrupted"}
+                else state,
+            }
+        seen = task.get("id"), state
+        if self.background_seen != seen:
+            self.background_seen = seen
+            if (
+                state in {"complete", "failed", "interrupted"}
+                and not self.tasks.closing.is_set()
+                and not self.diagnostic_lock.locked()
+            ):
+                self.check()
+            elif task.get("kind") == "verification" and state in {"starting", "running"}:
+                self.diagnostic = {**self.diagnostic, "state": "verifying", "verified": False}
+        return {key: task[key] for key in ("id", "kind", "state", "error", "stop_requested") if key in task}
 
     def runtime(self):
         return Runtime(self.settings.get("runtime", {}))
@@ -122,6 +153,18 @@ class Services:
                     lease.release()
 
     def activity(self):
+        task = self.store.background_task()
+        if task:
+            return {
+                "kind": "recovery" if task["state"] == "recovery" else task.get("kind", "external"),
+                "message": task.get("error")
+                or "A setup or GPU check still owns this workspace. Let it finish or stop it safely.",
+            }
+        if self.store.issues("runs"):
+            return {
+                "kind": "recovery",
+                "message": "Recover the unreadable run records before starting more GPU work. Your files have been left in place.",
+            }
         run = self.store.active_run()
         if run:
             return {
@@ -176,6 +219,8 @@ class Services:
 
     def check(self, verify=False):
         with self.control_lock, self.store.lock:
+            if self.tasks.closing.is_set() or self.store.background_task():
+                return False
             if self.diagnostic_lock.locked():
                 return False
             if verify:
@@ -196,23 +241,15 @@ class Services:
                     cmd = self.runtime().engine_command("verify", self.home / "diagnostics")
                     (self.home / "diagnostics").mkdir(exist_ok=True)
                     (self.home / "diagnostics/gpu-verification.json").unlink(missing_ok=True)
-                    with (self.home / "gpu-check.log").open("w") as log:
-                        p = subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT, timeout=900)
-                    report = (
-                        read(self.home / "diagnostics/gpu-verification.json") if p.returncode == 0 else None
+                    self.tasks.run(
+                        "verification",
+                        cmd,
+                        self.home / "gpu-check.log",
+                        lease=lease,
+                        timeout=900,
+                        fingerprint=result["fingerprint"],
                     )
-                    passed = p.returncode == 0 and bool(report and report.get("passed"))
-                    record = {
-                        "fingerprint": result["fingerprint"],
-                        "passed": passed,
-                        "checked": now(),
-                        "report": report,
-                        "error": None
-                        if passed
-                        else tail(self.home / "gpu-check.log", 2400)
-                        or "GPU execution did not produce a passing report.",
-                    }
-                    write(self.home / "diagnostics/verification.json", record)
+                    # The supervisor saves the result even if the server exits.
                     result.pop("verification_error", None)
                     result["state"] = (
                         "verify" if all(c["state"] == "ready" for c in result["checks"]) else "attention"
@@ -276,6 +313,7 @@ def create_app(home: Path | None = None, worker=True):
             services.queue.start()
             services.check()
         yield
+        services.tasks.close()
         services.queue.close()
         for run_id, (p, _) in list(services.viewers.items()):
             terminate(p)
@@ -311,6 +349,7 @@ def create_app(home: Path | None = None, worker=True):
     @app.get("/api/state")
     @services.serialized
     def state():
+        background = services.refresh_background()
         return {
             "settings": services.settings,
             "diagnostic": services.diagnostic,
@@ -323,6 +362,8 @@ def create_app(home: Path | None = None, worker=True):
                 if process.poll() is None
             },
             "setup": services.setup_job,
+            "background": background,
+            "record_issues": services.store.issues(),
             "setup_profile": services.runtime().profile(),
             "setup_reviewed": services.settings.get("setup_review") == services.runtime().profile(),
             "activity": services.activity(),
@@ -357,6 +398,8 @@ def create_app(home: Path | None = None, worker=True):
         new_store = Store(Path(options.path))
         services.queue.close()
         services.store = new_store
+        services.tasks = Tasks(new_store, services.home)
+        services.background_seen = None
         services.queue = Queue(new_store, services.runtime)
         if worker:
             services.queue.start()
@@ -435,7 +478,12 @@ def create_app(home: Path | None = None, worker=True):
         from .runtime import linux_path
 
         components = ["compiler", "colmap", "training"] if request.repair else fresh["missing_tools"]
-        command = ["bash", linux_path(script) if rt.wsl else str(script), *components]
+        command = [
+            "bash",
+            linux_path(script) if rt.wsl else str(script),
+            *(["--repair"] if request.repair else []),
+            *components,
+        ]
         if rt.wsl:
             command = ["wsl", "-d", rt.options.distro, "--", *command]
         elif os.name == "nt":
@@ -445,14 +493,13 @@ def create_app(home: Path | None = None, worker=True):
 
         def install():
             try:
-                with (services.home / "setup.log").open("w") as log:
-                    result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT)
+                result = services.tasks.run("setup", command, services.home / "setup.log", lease=lease)
                 with services.control_lock, services.store.lock:
                     services.setup_job = {
                         "state": "complete" if result.returncode == 0 else "failed",
                         "error": tail(services.home / "setup.log", 2000) if result.returncode else None,
                     }
-                    if result.returncode == 0:
+                    if result.returncode == 0 and not services.tasks.closing.is_set():
                         services.check()
             except Exception as exc:
                 services.setup_job = {"state": "failed", "error": str(exc)}
@@ -466,6 +513,12 @@ def create_app(home: Path | None = None, worker=True):
             services.setup_job = {"state": "failed", "error": str(exc)}
             raise
         return services.setup_job
+
+    @app.post("/api/background/{task_id}/stop")
+    @services.serialized
+    def stop_background(task_id: str):
+        services.tasks.stop(valid_id(task_id))
+        return {"stopping": True}
 
     @app.get("/api/setup/log")
     def setup_log():
