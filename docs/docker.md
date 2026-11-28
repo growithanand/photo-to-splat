@@ -1,4 +1,4 @@
-# Docker delivery
+# Optional Docker setup
 
 ```text
 Your system                          Photo to Splat container
@@ -12,12 +12,15 @@ The Dockerfile and Compose files live in this repository. The GPU image packages
 the same native and Python locks used by the local installer. Host drivers and
 GPU access remain prerequisites.
 
+The [uv setup](../README.md#run-locally-with-uv) is the recommended delivery route.
+Use Docker if you prefer a container and already have working Docker GPU access.
+Its large image and build caches require additional storage.
+
 ## Current availability
 
-The container route currently builds from source. A public image has not been
-published, so `docker compose pull` alone is not a working first-install command
-yet. Publishing a reviewed image to GitHub Container Registry is the next release
-step. No personal photos or workspaces belong in that image.
+This route builds from source; no public prebuilt image is provided.
+`docker compose pull` is not a working first-install command. Build the image
+locally using the command below. No personal photos or workspaces belong in it.
 
 ## Host prerequisites
 
@@ -101,10 +104,10 @@ viewer URL stays correct. Server logs still show the internal UI port, 8765;
 open the host port you configured. Do not expose the ports on a public interface.
 
 For a local-source update, stop active work and rebuild using the original build
-command. Once a public release is available, `PHOTOSPLAT_IMAGE` can select its
-documented version or digest. That route will use `docker compose pull`, followed
-by `docker compose up -d`. Recreate the container to replace packaged tools; the UI
-does not offer an installer or custom runtime paths in Docker mode.
+command. `PHOTOSPLAT_IMAGE` can select an image you have built or obtained
+separately; the default is the local build. Recreate the container to replace
+packaged tools; the UI does not offer an installer or custom runtime paths in
+Docker mode.
 
 ## Common startup problems
 

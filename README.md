@@ -55,10 +55,10 @@ For reconstruction, a compatible desktop or portable system needs:
 
 | Requirement | Supported configuration |
 |---|---|
-| Operating system | Windows or Linux x86_64. Local training needs WSL2 Ubuntu 24.04+ or Linux with glibc 2.39+; Docker supplies its own Linux userspace. |
+| Operating system | Windows x86_64 with WSL2 Ubuntu 24.04+, or Linux x86_64 with glibc 2.39+ for training |
 | CPU | x86-64-v3 or newer, including AVX2/FMA support; required by the pinned native camera tools |
 | Graphics | NVIDIA CUDA GPU with a driver compatible with the pinned runtimes |
-| Python | Included in Docker. For the local route, uv selects Python 3.11–3.13 for the app and a separate pinned Python 3.11 for training. |
+| Python | uv selects Python 3.11–3.13 for the app and a separate pinned Python 3.11 for training |
 | GPU memory | Depends on the scene; no minimum VRAM cutoff has been established |
 | System memory | Plan for 16–32 GB RAM; larger captures may need more |
 | Storage | Allow roughly 15–30 GB for tools/caches, plus imported photos and per-run working data/results |
@@ -85,46 +85,25 @@ without a supported training GPU.
 
 ## Choose how to run it
 
+**Start with uv and the guided local UI.** The initial install contains the app,
+image tools, and bundled frontend. Open the UI first to check your system and
+review the reconstruction requirements. Install missing GPU tools from
+**Computer & setup** when you are ready to reconstruct.
+
 | Route | What you install on the host | Best fit |
 |---|---|---|
-| [Docker](#run-with-docker) | Docker with NVIDIA GPU access and a compatible driver | Keep reconstruction tools inside a container |
-| [Local with uv](#run-locally-with-uv) | uv, a compatible driver, and WSL2 on Windows | Use guided local environments or modify the project |
+| [Local with uv — recommended](#run-locally-with-uv) | uv, a compatible driver, and WSL2 on Windows | Guided setup, separate environments, and tools reused across scenes |
+| [Docker — optional](#run-with-docker) | Docker with NVIDIA GPU access and a compatible driver | Users who prefer managing a GPU-enabled container |
 
 Both routes open the same interface and use the same reconstruction pipeline.
-The GPU, driver, available memory, and photo quality still matter with Docker.
-
-## Run with Docker
-
-Container packaging is available for local builds. **A public prebuilt image has
-not been published yet.** The first release will provide a versioned image for
-download; the command below currently builds it from this repository.
-
-Install Docker with working NVIDIA GPU access first. Windows uses Docker Desktop's
-WSL2 backend; Linux uses Docker Engine and NVIDIA Container Toolkit. The image
-contains Python, COLMAP, PyTorch, Nerfstudio, gsplat, and the CUDA compiler, so these
-tools do not need separate host installations.
-
-From the extracted or cloned repository folder:
-
-```bash
-docker compose -f compose.yaml -f compose.build.yaml up -d --build
-```
-
-Open **http://localhost:8765**. The first build downloads the large GPU toolchain;
-the first GPU test may compile extensions. Plan for roughly **60–100 GB** for the
-image and source-build caches, plus your photos and runs, in Docker's storage.
-Start with **Computer & setup → Verify GPU execution** before reconstructing.
-
-Scenes are saved in the `scenes` volume mounted at `/data`; generated caches use a
-separate volume. Select source photos through the browser as usual. Run
-`docker compose down` to stop the app while keeping those volumes.
-For later starts, use `docker compose up -d`; rebuilding is only needed when
-updating the source image.
-
-See the [Docker walkthrough](docs/docker.md) for prerequisites, storage, ports,
-updates, local builds, and the planned prebuilt-image release.
+Local reconstruction still requires a substantial one-time GPU-tool download
+and disk space. Using uv separates that setup from the initial UI install; it
+does not shrink the current training stack. Installed tools and saved GPU
+verification are reused for later scenes and app launches.
 
 ## Run locally with uv
+
+This is the recommended setup. Docker and Node.js are not required for normal use.
 
 ### Windows
 
@@ -160,6 +139,10 @@ The welcome page shows an example reconstruction and checks your environment.
 Open **Computer & setup** to resolve any missing requirements.
 
 ## Set up reconstruction tools
+
+The commands above install the app and open the local UI. PyTorch, Nerfstudio,
+COLMAP, and the CUDA compiler are installed separately in this step. You can
+explore the example, import photos, and review your system before that download.
 
 Open **Computer & setup**. The app detects existing tools first. If components
 are missing, review the location and storage allowance, then choose **Install
@@ -368,6 +351,18 @@ lock prevents training from starting while the viewer uses the GPU. If the UI
 is open, use **Start 3D viewer** on the saved result screen instead.
 The CLI's explicit GPU test also respects this lock; use the dashboard's
 verification button while the UI is running.
+
+## Run with Docker
+
+Docker is an optional route for users familiar with GPU-enabled containers.
+The repository includes local build recipes. **This route builds the GPU image
+from source; no public prebuilt image is provided.**
+
+The full GPU image includes the reconstruction toolchain. Source builds need
+substantial disk space: allow roughly **60–100 GB** for the image and build caches,
+plus scene data. See the [Docker walkthrough](docs/docker.md) for requirements,
+build commands, persistent storage, and updates. Use the uv route above for the
+recommended guided installation.
 
 ## Development and verification
 

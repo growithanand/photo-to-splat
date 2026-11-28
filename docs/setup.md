@@ -6,8 +6,13 @@ Browser UI → lightweight Python .venv → Linux worker
                                        └─ uv GPU environment + native CUDA/compiler
 ```
 
-This page describes the local uv route. The [Docker walkthrough](docker.md)
-uses the same tools inside an image and does not run the local installer.
+This page describes the recommended local uv route. The app opens before the
+GPU tools are installed, so you can check your system and review the storage
+requirements first. The training stack is still a separate, substantial download.
+Installed tools are reused across scenes.
+
+The optional [Docker walkthrough](docker.md) uses the same tools inside an image
+and does not run the local installer.
 
 ## What each dependency does
 
